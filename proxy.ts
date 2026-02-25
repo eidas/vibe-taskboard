@@ -25,11 +25,17 @@ export async function proxy(request: NextRequest) {
     }
   )
 
+  // セッションをリフレッシュ（この呼び出しは必須）
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
+
+  // auth コールバックはそのまま通す（セッション確立前のため）
+  if (pathname.startsWith('/auth/')) {
+    return supabaseResponse
+  }
 
   // 未認証ユーザーをログインページへリダイレクト
   if (!user && pathname !== '/login') {

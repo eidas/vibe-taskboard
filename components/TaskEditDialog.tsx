@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import type { Task, DueType, TimeUnit } from '@/lib/types'
 import { DUE_TYPE_OPTIONS, dueTypeToLabel } from '@/lib/task-utils'
@@ -42,7 +42,7 @@ export default function TaskEditDialog({ task, open, onClose, onSave }: TaskEdit
     }
   }, [open, task])
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     const parseTime = (val: string, unit: TimeUnit): { value: number | null; unit: TimeUnit | null } => {
       const num = parseFloat(val)
       if (isNaN(num) || val === '') return { value: null, unit: null }
@@ -63,13 +63,23 @@ export default function TaskEditDialog({ task, open, onClose, onSave }: TaskEdit
       notes,
     })
     onClose()
-  }
+  }, [name, dueType, dueDate, estValue, estUnit, actValue, actUnit, notes, onSave, onClose])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !(e.target instanceof HTMLTextAreaElement)) {
+      e.preventDefault()
+      handleSave()
+    }
+  }, [handleSave])
 
   return (
     <Dialog.Root open={open} onOpenChange={open => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/30 z-50" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <Dialog.Content
+          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-lg shadow-xl w-full max-w-md p-6"
+          onKeyDown={handleKeyDown}
+        >
           <Dialog.Title className="text-lg font-semibold text-gray-900 mb-4">
             タスクの編集
           </Dialog.Title>

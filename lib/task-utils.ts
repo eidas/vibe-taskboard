@@ -25,12 +25,12 @@ export function dueTypeToLabel(dueType: DueType, dueDate?: string | null): strin
 
 export const DUE_TYPE_OPTIONS: { value: DueType; label: string }[] = [
   { value: 'none', label: 'なし' },
+  { value: 'specific_date', label: '特定の日付' },
   { value: 'today', label: '今日' },
   { value: 'this_week', label: '今週' },
   { value: 'this_month', label: '今月' },
   { value: 'this_year', label: '今年' },
   { value: 'next_year_plus', label: '来年以降' },
-  { value: 'specific_date', label: '特定の日付' },
   { value: 'repeat_daily', label: '繰り返し：毎日' },
   { value: 'repeat_weekly', label: '繰り返し：毎週' },
   { value: 'repeat_monthly', label: '繰り返し：毎月' },
@@ -115,7 +115,7 @@ export function getChildDefaultDueType(parentDueType: DueType): DueType {
     case 'repeat_weekly': return 'this_week'
     case 'repeat_monthly': return 'this_month'
     case 'repeat_yearly': return 'this_year'
-    default: return 'none'
+    default: return 'specific_date'
   }
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, Fragment } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -132,11 +132,17 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
     const position = getNextPosition(siblings)
 
     // 親タスクの期日からデフォルト期日を計算
-    let defaultDueType: DueType = 'none'
+    let defaultDueType: DueType = 'specific_date'
     if (parentId) {
       const parent = tasks.find(t => t.id === parentId)
       if (parent) defaultDueType = getChildDefaultDueType(parent.due_type)
     }
+
+    // デフォルトの日付（今日）
+    const today = new Date()
+    const defaultDueDate = defaultDueType === 'specific_date'
+      ? `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+      : null
 
     const newTask: Omit<Task, 'id' | 'created_at' | 'updated_at'> = {
       user_id: userId,
@@ -144,7 +150,7 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
       level,
       name: '',
       due_type: defaultDueType,
-      due_date: null,
+      due_date: defaultDueDate,
       estimated_time_value: null,
       estimated_time_unit: null,
       actual_time_value: null,
@@ -296,6 +302,10 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
     const overTask = tasks.find(t => t.id === over.id)
     if (!activeTask || !overTask) return
 
+    // 自分の子孫にはドロップできない（循環参照防止）
+    const descendantIds = getDescendantIds(activeTask.id, tasks)
+    if (descendantIds.includes(overTask.id)) return
+
     // フラットリストでの位置を取得
     const flatAll = buildFlatList(tasks)
     const activeIdx = flatAll.findIndex(t => t.id === active.id)
@@ -303,70 +313,123 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
 
     if (activeIdx === -1 || overIdx === -1) return
 
-    // ドラッグ先の前後のposition値を計算
-    const sorted = [...flatAll]
-    const [removed] = sorted.splice(activeIdx, 1)
-    sorted.splice(overIdx, 0, removed)
+    const sameParent = activeTask.parent_id === overTask.parent_id
 
-    const newIdx = sorted.findIndex(t => t.id === active.id)
-    const before = newIdx > 0 ? sorted[newIdx - 1].position : null
-    const after = newIdx < sorted.length - 1 ? sorted[newIdx + 1].position : null
+    if (sameParent) {
+      // 同じ親の中での並べ替え
+      const sorted = [...flatAll]
+      const [removed] = sorted.splice(activeIdx, 1)
+      sorted.splice(overIdx, 0, removed)
 
-    // 同じ親の要素間でのみ並べ替え（親が違う場合は何もしない）
-    if (activeTask.parent_id !== overTask.parent_id) return
+      const newIdx = sorted.findIndex(t => t.id === active.id)
+      const before = newIdx > 0 ? sorted[newIdx - 1].position : null
+      const after = newIdx < sorted.length - 1 ? sorted[newIdx + 1].position : null
+      const newPosition = getPositionBetween(before, after)
 
-    const newPosition = getPositionBetween(before, after)
-    const descendantIds = getDescendantIds(activeTask.id, tasks)
+      setTasks(prev => prev.map(t =>
+        t.id === activeTask.id ? { ...t, position: newPosition } : t
+      ))
 
-    setTasks(prev => prev.map(t =>
-      t.id === activeTask.id ? { ...t, position: newPosition } : t
-    ))
+      await supabase.from('tasks').update({ position: newPosition }).eq('id', activeTask.id)
+    } else {
+      // 別の親への移動
+      const newParentId = overTask.parent_id
+      const newLevel = overTask.level
+      const levelDiff = newLevel - activeTask.level
 
-    await supabase.from('tasks').update({ position: newPosition }).eq('id', activeTask.id)
+      // レベル制限チェック（子孫含めて1-5に収まるか）
+      const maxDescendantLevel = descendantIds.reduce((max, id) => {
+        const desc = tasks.find(t => t.id === id)
+        return desc ? Math.max(max, desc.level) : max
+      }, activeTask.level)
+      if (maxDescendantLevel + levelDiff > 5 || newLevel < 1) return
+
+      // ターゲットの兄弟の中での位置を計算
+      const newSiblings = tasks
+        .filter(t => t.parent_id === newParentId && !t.archived && t.id !== activeTask.id)
+        .sort((a, b) => a.position - b.position)
+
+      const overSiblingIdx = newSiblings.findIndex(t => t.id === overTask.id)
+
+      let newPosition: number
+      if (activeIdx < overIdx) {
+        // 下に移動：ターゲットの後ろに配置
+        const beforePos = overTask.position
+        const afterPos = newSiblings[overSiblingIdx + 1]?.position ?? null
+        newPosition = getPositionBetween(beforePos, afterPos)
+      } else {
+        // 上に移動：ターゲットの前に配置
+        const beforePos = overSiblingIdx > 0 ? newSiblings[overSiblingIdx - 1].position : null
+        const afterPos = overTask.position
+        newPosition = getPositionBetween(beforePos, afterPos)
+      }
+
+      // ローカルステート更新
+      setTasks(prev => prev.map(t => {
+        if (t.id === activeTask.id) {
+          return { ...t, parent_id: newParentId, level: newLevel, position: newPosition }
+        }
+        if (descendantIds.includes(t.id)) {
+          return { ...t, level: t.level + levelDiff }
+        }
+        return t
+      }))
+
+      // DB更新
+      await supabase.from('tasks').update({
+        parent_id: newParentId,
+        level: newLevel,
+        position: newPosition,
+      }).eq('id', activeTask.id)
+
+      for (const descId of descendantIds) {
+        const desc = tasks.find(t => t.id === descId)
+        if (desc) {
+          await supabase.from('tasks').update({ level: desc.level + levelDiff }).eq('id', descId)
+        }
+      }
+    }
   }, [tasks, supabase])
 
   // ─── 追加ボタンの表示ロジック ─────────────────────────────────────────
-  // フィルタリングされていない全タスクのフラットリストで追加ボタン位置を計算
+  // レベル1の親タスクごとに、ツリー末尾に1個の子追加ボタンを表示
   const fullFlatList = buildFlatList(tasks)
 
-  // 各タスク後に表示すべき追加ボタンを計算
   const addButtonsAfter = new Map<string, { parentId: string | null; level: number }[]>()
 
   for (let i = 0; i < fullFlatList.length; i++) {
     const task = fullFlatList[i]
     const nextTask = fullFlatList[i + 1]
 
-    const buttons: { parentId: string | null; level: number }[] = []
+    // ツリーの末尾判定：次のタスクがL1（新しいツリー）または末尾
+    if (!nextTask || nextTask.level === 1) {
+      const buttons: { parentId: string | null; level: number }[] = []
 
-    // 現在のタスクがそのグループの最後の場合、追加ボタンを表示
-    // 「グループの最後」 = 次のタスクが自分より浅いレベル、または存在しない
-    if (!nextTask || nextTask.level < task.level) {
-      // task.level から nextTask.level+1 (または1) まで各レベルの追加ボタン
-      const minLevel = nextTask ? nextTask.level + 1 : 1
-      for (let lvl = task.level; lvl >= minLevel; lvl--) {
-        // このレベルの親を探す
-        let parentId: string | null = null
-        if (lvl === 1) {
-          parentId = null
-        } else {
-          // フラットリストで現在位置より前の、level === lvl-1 のタスクを探す
-          for (let j = i; j >= 0; j--) {
-            if (fullFlatList[j].level === lvl - 1) {
-              parentId = fullFlatList[j].id
-              break
-            }
-          }
+      // このタスクが属するL1親を探す
+      let rootParentId: string | null = null
+      for (let j = i; j >= 0; j--) {
+        if (fullFlatList[j].level === 1) {
+          rootParentId = fullFlatList[j].id
+          break
         }
-        buttons.push({ parentId, level: lvl })
       }
-    }
 
-    if (buttons.length > 0) {
-      addButtonsAfter.set(task.id, buttons)
+      // L1親の子追加ボタン
+      if (rootParentId) {
+        buttons.push({ parentId: rootParentId, level: 2 })
+      }
+
+      // 最後のタスクの場合、ルートレベル追加ボタンも表示
+      if (!nextTask) {
+        buttons.push({ parentId: null, level: 1 })
+      }
+
+      if (buttons.length > 0) {
+        addButtonsAfter.set(task.id, buttons)
+      }
     }
   }
 
-  // 全タスクが0件の場合はルート追加ボタン
   const showRootAddButton = fullFlatList.length === 0
 
   return (
@@ -394,6 +457,15 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
 
       {/* タスクテーブル */}
       <div className="px-4 overflow-x-auto">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={filteredList.map(t => t.id)}
+            strategy={verticalListSortingStrategy}
+          >
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="border-b border-gray-300">
@@ -408,59 +480,41 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
             </tr>
           </thead>
           <tbody>
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={filteredList.map(t => t.id)}
-                strategy={verticalListSortingStrategy}
-              >
                 {filteredList.map(task => (
-                  <TaskRow
-                    key={task.id}
-                    task={task}
-                    focusedId={focusedId}
-                    focusedColumn={focusedColumn}
-                    onFocus={(id, col) => { setFocusedId(id); setFocusedColumn(col) }}
-                    onUpdate={handleUpdate}
-                    onDelete={handleDelete}
-                    onToggleComplete={handleToggleComplete}
-                    onLevelUp={handleLevelUp}
-                    onLevelDown={handleLevelDown}
-                    onFocusNext={handleFocusNext}
-                    onFocusPrev={handleFocusPrev}
-                  />
+                  <Fragment key={task.id}>
+                    <TaskRow
+                      task={task}
+                      focusedId={focusedId}
+                      focusedColumn={focusedColumn}
+                      onFocus={(id, col) => { setFocusedId(id); setFocusedColumn(col) }}
+                      onUpdate={handleUpdate}
+                      onDelete={handleDelete}
+                      onToggleComplete={handleToggleComplete}
+                      onLevelUp={handleLevelUp}
+                      onLevelDown={handleLevelDown}
+                      onFocusNext={handleFocusNext}
+                      onFocusPrev={handleFocusPrev}
+                    />
+                    {filter === 'all' && addButtonsAfter.get(task.id)?.map((btn, i) => (
+                      <tr key={`add-${task.id}-${btn.level}-${i}`}>
+                        <td colSpan={2}></td>
+                        <td colSpan={6}>
+                          <div style={{ paddingLeft: `${(btn.level - 1) * 20 + 4}px` }}>
+                            <button
+                              onClick={() => handleAdd(btn.parentId, btn.level)}
+                              className="text-blue-500 hover:text-blue-700 text-sm py-0.5 flex items-center gap-0.5"
+                            >
+                              <span>+</span>
+                              <span>追加</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
                 ))}
-              </SortableContext>
-            </DndContext>
 
-            {/* 追加ボタン行 */}
-            {filter === 'all' && (
-              <>
-                {fullFlatList.map(task => {
-                  const buttons = addButtonsAfter.get(task.id)
-                  if (!buttons || buttons.length === 0) return null
-                  return buttons.map((btn, i) => (
-                    <tr key={`add-${task.id}-${btn.level}-${i}`}>
-                      <td colSpan={2}></td>
-                      <td colSpan={6}>
-                        <div style={{ paddingLeft: `${(btn.level - 1) * 20 + 4}px` }}>
-                          <button
-                            onClick={() => handleAdd(btn.parentId, btn.level)}
-                            className="text-blue-500 hover:text-blue-700 text-sm py-0.5 flex items-center gap-0.5"
-                          >
-                            <span>+</span>
-                            <span>追加</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                })}
-
-                {showRootAddButton && (
+                {filter === 'all' && showRootAddButton && (
                   <tr>
                     <td colSpan={2}></td>
                     <td colSpan={6}>
@@ -474,10 +528,10 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
                     </td>
                   </tr>
                 )}
-              </>
-            )}
           </tbody>
         </table>
+          </SortableContext>
+        </DndContext>
       </div>
     </div>
   )
