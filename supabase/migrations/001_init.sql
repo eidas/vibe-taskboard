@@ -6,12 +6,12 @@ CREATE TABLE IF NOT EXISTS tasks (
   parent_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
   level INTEGER NOT NULL DEFAULT 1 CHECK (level BETWEEN 1 AND 5),
   name TEXT NOT NULL DEFAULT '',
-  due_type TEXT NOT NULL DEFAULT 'none' CHECK (due_type IN (
+  due_type TEXT NOT NULL DEFAULT 'specific_date' CHECK (due_type IN (
     'specific_date', 'none', 'today', 'this_week', 'this_month',
     'this_year', 'next_year_plus',
     'repeat_daily', 'repeat_weekly', 'repeat_monthly', 'repeat_yearly'
   )),
-  due_date DATE,
+  due_date DATE DEFAULT CURRENT_DATE,
   estimated_time_value DECIMAL,
   estimated_time_unit TEXT CHECK (estimated_time_unit IN ('mo', 'day', 'h', 'min')),
   actual_time_value DECIMAL,
