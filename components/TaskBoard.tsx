@@ -456,7 +456,7 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
       </div>
 
       {/* タスクテーブル */}
-      <div className="px-4 overflow-x-auto">
+      <div className="px-4">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -467,7 +467,7 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
             strategy={verticalListSortingStrategy}
           >
         <table className="w-full text-sm border-collapse">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-white">
             <tr className="border-b border-gray-300">
               <th className="w-6"></th>
               <th className="w-6"></th>

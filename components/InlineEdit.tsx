@@ -58,6 +58,13 @@ export default function InlineEdit({
     }
   }, [editing])
 
+  // 値が空でフォーカスされたら自動的に編集モードに入る
+  useEffect(() => {
+    if (isFocused && !value && !editing) {
+      startEdit()
+    }
+  }, [isFocused, value, editing, startEdit])
+
   const handleCellKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter' || e.key === 'F2') {
       e.preventDefault()
@@ -90,7 +97,7 @@ export default function InlineEdit({
         onChange={e => setDraft(e.target.value)}
         onKeyDown={handleInputKeyDown}
         onBlur={commitEdit}
-        className={`w-full border-0 outline-none bg-blue-50 px-1 text-sm ${className}`}
+        className={`w-full border-0 outline-none bg-blue-100 px-1 text-sm ${className}`}
       />
     )
   }
@@ -104,9 +111,9 @@ export default function InlineEdit({
       onKeyDown={handleCellKeyDown}
       onFocus={onFocus}
       onBlur={onBlur}
-      className={`cursor-text min-w-0 text-sm px-1 outline-none focus:bg-blue-50 rounded ${
+      className={`cursor-text min-h-6 w-full text-sm px-1 outline-none focus:bg-blue-100 rounded ${
         !value ? 'text-gray-400' : ''
-      } ${isFocused ? 'bg-blue-50' : ''} ${className}`}
+      } ${isFocused ? 'bg-blue-100' : ''} ${className}`}
     >
       {value || placeholder}
     </div>

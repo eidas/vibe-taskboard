@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { FlatTask, Task, DueType, TimeUnit } from '@/lib/types'
@@ -37,7 +37,10 @@ export default function TaskRow({
   onFocusPrev,
 }: TaskRowProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const isFocused = focusedId === task.id
+
+  useEffect(() => setMounted(true), [])
 
   const {
     attributes,
@@ -48,22 +51,29 @@ export default function TaskRow({
     isDragging,
   } = useSortable({ id: task.id })
 
-  const style = {
+  const style = mounted ? {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-  }
+  } : {}
+  const dragProps = mounted ? { ...attributes, ...listeners } : {}
 
   const indent = (task.level - 1) * 20 // px per level
+
+  const handleRowKeyDown = (e: React.KeyboardEvent) => {
+    if (e.ctrlKey && e.key === 'ArrowRight') {
+      e.preventDefault()
+      onLevelDown(task.id)
+    } else if (e.ctrlKey && e.key === 'ArrowLeft') {
+      e.preventDefault()
+      onLevelUp(task.id)
+    }
+  }
 
   const handleCheckboxKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
       onToggleComplete(task.id, !task.completed)
-    } else if (e.key === 'Tab') {
-      e.preventDefault()
-      if (e.shiftKey) onLevelUp(task.id)
-      else onLevelDown(task.id)
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       onFocusPrev(task.id)
@@ -79,9 +89,10 @@ export default function TaskRow({
         ref={setNodeRef}
         style={style}
         className={`border-b border-gray-100 hover:bg-gray-50 group ${isDragging ? 'bg-blue-50' : ''}`}
+        onKeyDown={handleRowKeyDown}
       >
         {/* ドラッグハンドル */}
-        <td className="w-6 py-1 pl-1 text-gray-400 cursor-grab active:cursor-grabbing" {...attributes} {...listeners}>
+        <td className="w-6 py-1 pl-1 text-gray-400 cursor-grab active:cursor-grabbing" {...dragProps}>
           <span className="text-xs select-none">=</span>
         </td>
 
@@ -105,6 +116,7 @@ export default function TaskRow({
             <InlineEdit
               value={task.name}
               onSave={val => onUpdate(task.id, { name: val })}
+              placeholder="タスク名を入力"
               isFocused={isFocused && focusedColumn === 'name'}
               onFocus={() => onFocus(task.id, 'name')}
               onArrowUp={() => onFocusPrev(task.id)}
