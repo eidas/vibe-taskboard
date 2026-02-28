@@ -11,6 +11,8 @@ import TaskEditDialog from './TaskEditDialog'
 
 interface TaskRowProps {
   task: FlatTask
+  collapsed: boolean
+  onToggleCollapse: (id: string) => void
   focusedId: string | null
   focusedColumn: 'name' | 'due' | 'time' | 'checkbox' | null
   onFocus: (id: string, column: 'name' | 'due' | 'time' | 'checkbox') => void
@@ -25,6 +27,8 @@ interface TaskRowProps {
 
 export default function TaskRow({
   task,
+  collapsed,
+  onToggleCollapse,
   focusedId,
   focusedColumn,
   onFocus,
@@ -113,6 +117,25 @@ export default function TaskRow({
         {/* タスク名 */}
         <td className="py-1 min-w-[200px]">
           <div style={{ paddingLeft: `${indent}px` }} className="flex items-center">
+            {task.hasChildren ? (
+              <button
+                onClick={() => onToggleCollapse(task.id)}
+                className="w-4 h-4 flex items-center justify-center text-gray-400 hover:text-gray-600 flex-shrink-0 mr-0.5"
+                tabIndex={-1}
+                aria-label={collapsed ? '子タスクを展開' : '子タスクを折りたたむ'}
+              >
+                <svg
+                  className={`w-3 h-3 transition-transform duration-150 ${collapsed ? '-rotate-90' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            ) : (
+              <span className="w-4 flex-shrink-0 mr-0.5" />
+            )}
             <InlineEdit
               value={task.name}
               onSave={val => onUpdate(task.id, { name: val })}

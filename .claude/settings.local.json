@@ -3,7 +3,10 @@
     "allow": [
       "Bash(cat:*)",
       "Bash(npx next build:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(npx next lint --quiet)",
+      "Bash(npx next lint:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

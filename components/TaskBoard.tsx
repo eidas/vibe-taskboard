@@ -40,7 +40,58 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
   const [filter, setFilter] = useState<FilterType>('all')
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const [focusedColumn, setFocusedColumn] = useState<'name' | 'due' | 'time' | 'checkbox' | null>(null)
+  const [headerCollapsed, setHeaderCollapsed] = useState(false)
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
+  const headerRef = useRef<HTMLDivElement>(null)
+  const [headerHeight, setHeaderHeight] = useState(0)
   const supabase = createClient()
+
+  // ─── 列幅リサイズ ────────────────────────────────────────────────────
+  const [colWidths, setColWidths] = useState<Record<string, number | undefined>>({})
+  const resizeColRef = useRef<{ col: string; startX: number; startWidth: number } | null>(null)
+
+  const handleResizeStart = useCallback((col: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const th = (e.target as HTMLElement).closest('th')!
+    const startWidth = th.getBoundingClientRect().width
+    const startX = e.clientX
+    const minWidths: Record<string, number> = { name: 100, due: 80, time: 60, notes: 50 }
+    const minW = minWidths[col] ?? 40
+
+    resizeColRef.current = { col, startX, startWidth }
+
+    const onMouseMove = (moveE: MouseEvent) => {
+      if (!resizeColRef.current) return
+      const diff = moveE.clientX - resizeColRef.current.startX
+      const newWidth = Math.max(minW, resizeColRef.current.startWidth + diff)
+      setColWidths(prev => ({ ...prev, [resizeColRef.current!.col]: newWidth }))
+    }
+
+    const onMouseUp = () => {
+      resizeColRef.current = null
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }, [])
+
+  // ─── ヘッダー高さ監視 ─────────────────────────────────────────────
+  useEffect(() => {
+    const el = headerRef.current
+    if (!el) return
+    const observer = new ResizeObserver(() => {
+      setHeaderHeight(el.getBoundingClientRect().height)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   // ─── 繰り返しタスクのリセット処理 ─────────────────────────────────────
   useEffect(() => {
@@ -79,11 +130,36 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // ─── 折りたたみトグル ──────────────────────────────────────────────────
+  const handleToggleCollapse = useCallback((id: string) => {
+    setCollapsedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
   // ─── フラットリスト（表示用） ─────────────────────────────────────────
   const flatList = buildFlatList(tasks)
 
+  // 折りたたみ済みタスクの子孫を除外
+  const visibleList: FlatTask[] = []
+  const skipDescendantsOf = new Set<string>()
+  for (const task of flatList) {
+    // 祖先が折りたたまれていたらスキップ
+    if (task.parent_id && skipDescendantsOf.has(task.parent_id)) {
+      skipDescendantsOf.add(task.id)
+      continue
+    }
+    visibleList.push(task)
+    if (collapsedIds.has(task.id)) {
+      skipDescendantsOf.add(task.id)
+    }
+  }
+
   // フィルター後のリスト
-  const filteredList: FlatTask[] = flatList.filter(task => {
+  const filteredList: FlatTask[] = visibleList.filter(task => {
     if (filter === 'completed') return task.completed
     if (filter === 'incomplete') return !task.completed
     return true
@@ -295,7 +371,7 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
 
   // ─── ドラッグ&ドロップ ───────────────────────────────────────────────
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
-    const { active, over } = event
+    const { active, over, delta } = event
     if (!over || active.id === over.id) return
 
     const activeTask = tasks.find(t => t.id === active.id)
@@ -310,83 +386,94 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
     const flatAll = buildFlatList(tasks)
     const activeIdx = flatAll.findIndex(t => t.id === active.id)
     const overIdx = flatAll.findIndex(t => t.id === over.id)
-
     if (activeIdx === -1 || overIdx === -1) return
 
-    const sameParent = activeTask.parent_id === overTask.parent_id
+    // activeとその子孫を除いたリスト
+    const cleaned = flatAll.filter(t => t.id !== activeTask.id && !descendantIds.includes(t.id))
+    const cleanOverIdx = cleaned.findIndex(t => t.id === over.id)
+    if (cleanOverIdx === -1) return
 
-    if (sameParent) {
-      // 同じ親の中での並べ替え
-      const sorted = [...flatAll]
-      const [removed] = sorted.splice(activeIdx, 1)
-      sorted.splice(overIdx, 0, removed)
+    // 挿入位置を決定（overの前 or 後）
+    const insertAfterIdx = activeIdx < overIdx ? cleanOverIdx : cleanOverIdx - 1
 
-      const newIdx = sorted.findIndex(t => t.id === active.id)
-      const before = newIdx > 0 ? sorted[newIdx - 1].position : null
-      const after = newIdx < sorted.length - 1 ? sorted[newIdx + 1].position : null
-      const newPosition = getPositionBetween(before, after)
+    // 水平オフセットからレベル変更を計算
+    const INDENT_PX = 20
+    const levelDelta = Math.round(delta.x / INDENT_PX)
 
-      setTasks(prev => prev.map(t =>
-        t.id === activeTask.id ? { ...t, position: newPosition } : t
-      ))
+    // 子孫の最大深度差（レベル制限チェック用）
+    const maxDescendantDepth = descendantIds.reduce((max, id) => {
+      const desc = tasks.find(t => t.id === id)
+      return desc ? Math.max(max, desc.level - activeTask.level) : max
+    }, 0)
 
-      await supabase.from('tasks').update({ position: newPosition }).eq('id', activeTask.id)
-    } else {
-      // 別の親への移動
-      const newParentId = overTask.parent_id
-      const newLevel = overTask.level
-      const levelDiff = newLevel - activeTask.level
+    // 挿入位置での有効レベル範囲
+    const taskAbove = insertAfterIdx >= 0 ? cleaned[insertAfterIdx] : null
+    const maxLevel = Math.min(
+      taskAbove ? taskAbove.level + 1 : 1,
+      5 - maxDescendantDepth
+    )
+    let newLevel = Math.max(1, Math.min(maxLevel, activeTask.level + levelDelta))
 
-      // レベル制限チェック（子孫含めて1-5に収まるか）
-      const maxDescendantLevel = descendantIds.reduce((max, id) => {
-        const desc = tasks.find(t => t.id === id)
-        return desc ? Math.max(max, desc.level) : max
-      }, activeTask.level)
-      if (maxDescendantLevel + levelDiff > 5 || newLevel < 1) return
-
-      // ターゲットの兄弟の中での位置を計算
-      const newSiblings = tasks
-        .filter(t => t.parent_id === newParentId && !t.archived && t.id !== activeTask.id)
-        .sort((a, b) => a.position - b.position)
-
-      const overSiblingIdx = newSiblings.findIndex(t => t.id === overTask.id)
-
-      let newPosition: number
-      if (activeIdx < overIdx) {
-        // 下に移動：ターゲットの後ろに配置
-        const beforePos = overTask.position
-        const afterPos = newSiblings[overSiblingIdx + 1]?.position ?? null
-        newPosition = getPositionBetween(beforePos, afterPos)
-      } else {
-        // 上に移動：ターゲットの前に配置
-        const beforePos = overSiblingIdx > 0 ? newSiblings[overSiblingIdx - 1].position : null
-        const afterPos = overTask.position
-        newPosition = getPositionBetween(beforePos, afterPos)
+    // 新しい親を探す（挿入位置から上方向に、newLevel - 1 のタスクを探す）
+    let newParentId: string | null = null
+    if (newLevel > 1) {
+      for (let i = insertAfterIdx; i >= 0; i--) {
+        if (cleaned[i].level === newLevel - 1) {
+          newParentId = cleaned[i].id
+          break
+        }
+        if (cleaned[i].level < newLevel - 1) break
       }
+      if (newParentId === null) {
+        newLevel = 1 // 有効な親が見つからない場合はルートに
+      }
+    }
 
-      // ローカルステート更新
-      setTasks(prev => prev.map(t => {
-        if (t.id === activeTask.id) {
-          return { ...t, parent_id: newParentId, level: newLevel, position: newPosition }
-        }
-        if (descendantIds.includes(t.id)) {
-          return { ...t, level: t.level + levelDiff }
-        }
-        return t
-      }))
+    const levelDiff = newLevel - activeTask.level
 
-      // DB更新
-      await supabase.from('tasks').update({
-        parent_id: newParentId,
-        level: newLevel,
-        position: newPosition,
-      }).eq('id', activeTask.id)
+    // 新しい兄弟の中でのposition計算
+    const newSiblings = cleaned
+      .filter(t => t.parent_id === newParentId)
+      .sort((a, b) => a.position - b.position)
 
-      for (const descId of descendantIds) {
-        const desc = tasks.find(t => t.id === descId)
-        if (desc) {
-          await supabase.from('tasks').update({ level: desc.level + levelDiff }).eq('id', descId)
-        }
+    let beforeSibling: FlatTask | null = null
+    let afterSibling: FlatTask | null = null
+    for (const sib of newSiblings) {
+      const sibIdx = cleaned.findIndex(t => t.id === sib.id)
+      if (sibIdx <= insertAfterIdx) {
+        beforeSibling = sib
+      } else if (!afterSibling) {
+        afterSibling = sib
+      }
+    }
+
+    const newPosition = getPositionBetween(
+      beforeSibling?.position ?? null,
+      afterSibling?.position ?? null
+    )
+
+    // ローカルステート更新
+    setTasks(prev => prev.map(t => {
+      if (t.id === activeTask.id) {
+        return { ...t, parent_id: newParentId, level: newLevel, position: newPosition }
+      }
+      if (descendantIds.includes(t.id)) {
+        return { ...t, level: t.level + levelDiff }
+      }
+      return t
+    }))
+
+    // DB更新
+    await supabase.from('tasks').update({
+      parent_id: newParentId,
+      level: newLevel,
+      position: newPosition,
+    }).eq('id', activeTask.id)
+
+    for (const descId of descendantIds) {
+      const desc = tasks.find(t => t.id === descId)
+      if (desc) {
+        await supabase.from('tasks').update({ level: desc.level + levelDiff }).eq('id', descId)
       }
     }
   }, [tasks, supabase])
@@ -419,40 +506,55 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
         buttons.push({ parentId: rootParentId, level: 2 })
       }
 
-      // 最後のタスクの場合、ルートレベル追加ボタンも表示
-      if (!nextTask) {
-        buttons.push({ parentId: null, level: 1 })
-      }
-
       if (buttons.length > 0) {
         addButtonsAfter.set(task.id, buttons)
       }
     }
   }
 
-  const showRootAddButton = fullFlatList.length === 0
+  // ルートレベル追加ボタンは常に表示
+  const showRootAddButton = true
 
   return (
     <div className="min-h-screen bg-white">
-      {/* ヘッダー */}
-      <div className="border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-        <h1 className="text-base font-medium text-gray-800">タスク管理ボード</h1>
-        <form action="/auth/signout" method="post">
-          <button
-            type="submit"
-            className="text-xs text-gray-500 hover:text-gray-700"
-          >
-            ログアウト
-          </button>
-        </form>
-      </div>
+      {/* Stickyヘッダー */}
+      <div ref={headerRef} className="sticky top-0 z-20 bg-white border-b border-gray-200">
+        {/* タイトルバー（常に表示） */}
+        <div className="px-6 py-2 flex items-center justify-between">
+          <h1 className="text-base font-medium text-gray-800">タスク管理ボード</h1>
+          <div className="flex items-center gap-3">
+            <form action="/auth/signout" method="post">
+              <button
+                type="submit"
+                className="text-xs text-gray-500 hover:text-gray-700"
+              >
+                ログアウト
+              </button>
+            </form>
+            <button
+              onClick={() => setHeaderCollapsed(prev => !prev)}
+              className="text-gray-400 hover:text-gray-600 p-1"
+              aria-label={headerCollapsed ? 'ヘッダーを展開' : 'ヘッダーを折りたたむ'}
+            >
+              <svg
+                className={`w-4 h-4 transition-transform duration-200 ${headerCollapsed ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
 
-      <div className="px-4 py-3 space-y-3">
-        {/* フィルターボタン */}
-        <FilterButtons current={filter} onChange={setFilter} />
-
-        {/* 統計 */}
-        <TaskStats tasks={tasks} />
+        {/* 折りたたみ可能エリア（フィルター + 統計） */}
+        <div className={`overflow-hidden transition-all duration-300 ${headerCollapsed ? 'max-h-0' : 'max-h-40'}`}>
+          <div className="px-4 pb-3 space-y-3">
+            <FilterButtons current={filter} onChange={setFilter} />
+            <TaskStats tasks={tasks} />
+          </div>
+        </div>
       </div>
 
       {/* タスクテーブル */}
@@ -466,15 +568,55 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
             items={filteredList.map(t => t.id)}
             strategy={verticalListSortingStrategy}
           >
-        <table className="w-full text-sm border-collapse">
-          <thead className="sticky top-0 z-10 bg-white">
+        <table className="w-full text-sm border-collapse" style={{ tableLayout: 'fixed' }}>
+          <thead className="sticky z-10 bg-white" style={{ top: `${headerHeight}px` }}>
             <tr className="border-b border-gray-300">
               <th className="w-6"></th>
               <th className="w-6"></th>
-              <th className="text-left py-1.5 px-1 font-medium text-gray-700">タスク名</th>
-              <th className="text-left py-1.5 px-1 font-medium text-gray-700 w-36">期日</th>
-              <th className="text-left py-1.5 px-1 font-medium text-gray-700 w-24">見積り時間</th>
-              <th className="text-left py-1.5 px-1 font-medium text-gray-700 w-20">備考</th>
+              <th
+                className="text-left py-1.5 px-1 font-medium text-gray-700 relative"
+                style={colWidths.name != null ? { width: colWidths.name } : undefined}
+              >
+                タスク名
+                <div
+                  onMouseDown={(e) => handleResizeStart('name', e)}
+                  className="absolute top-0 bottom-0 cursor-col-resize hover:bg-blue-400 z-10"
+                  style={{ right: -2, width: 5 }}
+                />
+              </th>
+              <th
+                className={`text-left py-1.5 px-1 font-medium text-gray-700 relative${colWidths.due == null ? ' w-36' : ''}`}
+                style={colWidths.due != null ? { width: colWidths.due } : undefined}
+              >
+                期日
+                <div
+                  onMouseDown={(e) => handleResizeStart('due', e)}
+                  className="absolute top-0 bottom-0 cursor-col-resize hover:bg-blue-400 z-10"
+                  style={{ right: -2, width: 5 }}
+                />
+              </th>
+              <th
+                className={`text-left py-1.5 px-1 font-medium text-gray-700 relative${colWidths.time == null ? ' w-24' : ''}`}
+                style={colWidths.time != null ? { width: colWidths.time } : undefined}
+              >
+                見積り時間
+                <div
+                  onMouseDown={(e) => handleResizeStart('time', e)}
+                  className="absolute top-0 bottom-0 cursor-col-resize hover:bg-blue-400 z-10"
+                  style={{ right: -2, width: 5 }}
+                />
+              </th>
+              <th
+                className={`text-left py-1.5 px-1 font-medium text-gray-700 relative${colWidths.notes == null ? ' w-20' : ''}`}
+                style={colWidths.notes != null ? { width: colWidths.notes } : undefined}
+              >
+                備考
+                <div
+                  onMouseDown={(e) => handleResizeStart('notes', e)}
+                  className="absolute top-0 bottom-0 cursor-col-resize hover:bg-blue-400 z-10"
+                  style={{ right: -2, width: 5 }}
+                />
+              </th>
               <th className="w-8"></th>
               <th className="w-8"></th>
             </tr>
@@ -484,6 +626,8 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
                   <Fragment key={task.id}>
                     <TaskRow
                       task={task}
+                      collapsed={collapsedIds.has(task.id)}
+                      onToggleCollapse={handleToggleCollapse}
                       focusedId={focusedId}
                       focusedColumn={focusedColumn}
                       onFocus={(id, col) => { setFocusedId(id); setFocusedColumn(col) }}
