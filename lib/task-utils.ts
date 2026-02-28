@@ -110,6 +110,7 @@ export function getDescendantIds(taskId: string, tasks: Task[]): string[] {
 
 export function getChildDefaultDueType(parentDueType: DueType): DueType {
   switch (parentDueType) {
+    case 'none': return 'none'
     case 'next_year_plus': return 'this_year'
     case 'repeat_daily': return 'today'
     case 'repeat_weekly': return 'this_week'

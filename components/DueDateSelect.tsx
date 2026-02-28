@@ -92,7 +92,7 @@ export default function DueDateSelect({
     <div ref={containerRef} className="relative">
       <div
         tabIndex={0}
-        onClick={handleOpen}
+        onClick={() => open ? setOpen(false) : handleOpen()}
         onKeyDown={handleKeyDown}
         onFocus={onFocus}
         onBlur={e => {

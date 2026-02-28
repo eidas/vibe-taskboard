@@ -372,14 +372,121 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
   // ─── ドラッグ&ドロップ ───────────────────────────────────────────────
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over, delta } = event
-    if (!over || active.id === over.id) return
+    if (!over) return
 
     const activeTask = tasks.find(t => t.id === active.id)
+    if (!activeTask) return
+
+    const INDENT_PX = 20
+    const levelDelta = Math.round(delta.x / INDENT_PX)
+
+    const descendantIds = getDescendantIds(activeTask.id, tasks)
+
+    // 同じ位置へのドロップ → 水平移動によるレベル変更のみ処理
+    if (active.id === over.id) {
+      if (levelDelta === 0) return
+
+      const flatAll = buildFlatList(tasks)
+      const activeIdx = flatAll.findIndex(t => t.id === active.id)
+      if (activeIdx === -1) return
+
+      // activeとその子孫を除いたリスト
+      const cleaned = flatAll.filter(t => t.id !== activeTask.id && !descendantIds.includes(t.id))
+
+      // 挿入位置は元の位置の直前（自分を除いたリストでの位置）
+      const insertAfterIdx = activeIdx - 1 - flatAll.slice(0, activeIdx).filter(t => descendantIds.includes(t.id)).length
+
+      // 子孫の最大深度差
+      const maxDescendantDepth = descendantIds.reduce((max, id) => {
+        const desc = tasks.find(t => t.id === id)
+        return desc ? Math.max(max, desc.level - activeTask.level) : max
+      }, 0)
+
+      // 有効レベル範囲
+      const taskAbove = insertAfterIdx >= 0 ? cleaned[insertAfterIdx] : null
+      const taskBelow = insertAfterIdx + 1 < cleaned.length ? cleaned[insertAfterIdx + 1] : null
+      const maxLevel = Math.min(
+        taskAbove ? taskAbove.level + 1 : 1,
+        5 - maxDescendantDepth
+      )
+      // 下のタスクのレベル以上でなければならない（子が孤立しないように）
+      const minLevel = taskBelow ? Math.min(taskBelow.level, activeTask.level) : 1
+      let newLevel = Math.max(minLevel, Math.min(maxLevel, activeTask.level + levelDelta))
+
+      if (newLevel === activeTask.level) return
+
+      // 新しい親を探す
+      let newParentId: string | null = null
+      if (newLevel > 1) {
+        for (let i = insertAfterIdx; i >= 0; i--) {
+          if (cleaned[i].level === newLevel - 1) {
+            newParentId = cleaned[i].id
+            break
+          }
+          if (cleaned[i].level < newLevel - 1) break
+        }
+        if (newParentId === null) {
+          newLevel = 1
+        }
+      }
+
+      if (newLevel === activeTask.level) return
+
+      const levelDiff = newLevel - activeTask.level
+
+      // 新しい兄弟の中でのposition計算
+      const newSiblings = cleaned
+        .filter(t => t.parent_id === newParentId)
+        .sort((a, b) => a.position - b.position)
+
+      let beforeSibling: FlatTask | null = null
+      let afterSibling: FlatTask | null = null
+      for (const sib of newSiblings) {
+        const sibIdx = cleaned.findIndex(t => t.id === sib.id)
+        if (sibIdx <= insertAfterIdx) {
+          beforeSibling = sib
+        } else if (!afterSibling) {
+          afterSibling = sib
+        }
+      }
+
+      const newPosition = getPositionBetween(
+        beforeSibling?.position ?? null,
+        afterSibling?.position ?? null
+      )
+
+      // ローカルステート更新
+      setTasks(prev => prev.map(t => {
+        if (t.id === activeTask.id) {
+          return { ...t, parent_id: newParentId, level: newLevel, position: newPosition }
+        }
+        if (descendantIds.includes(t.id)) {
+          return { ...t, level: t.level + levelDiff }
+        }
+        return t
+      }))
+
+      // DB更新
+      await supabase.from('tasks').update({
+        parent_id: newParentId,
+        level: newLevel,
+        position: newPosition,
+      }).eq('id', activeTask.id)
+
+      for (const descId of descendantIds) {
+        const desc = tasks.find(t => t.id === descId)
+        if (desc) {
+          await supabase.from('tasks').update({ level: desc.level + levelDiff }).eq('id', descId)
+        }
+      }
+      return
+    }
+
+    // 別のタスクへのドロップ → 並べ替え＋レベル変更
     const overTask = tasks.find(t => t.id === over.id)
-    if (!activeTask || !overTask) return
+    if (!overTask) return
 
     // 自分の子孫にはドロップできない（循環参照防止）
-    const descendantIds = getDescendantIds(activeTask.id, tasks)
     if (descendantIds.includes(overTask.id)) return
 
     // フラットリストでの位置を取得
@@ -395,10 +502,6 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
 
     // 挿入位置を決定（overの前 or 後）
     const insertAfterIdx = activeIdx < overIdx ? cleanOverIdx : cleanOverIdx - 1
-
-    // 水平オフセットからレベル変更を計算
-    const INDENT_PX = 20
-    const levelDelta = Math.round(delta.x / INDENT_PX)
 
     // 子孫の最大深度差（レベル制限チェック用）
     const maxDescendantDepth = descendantIds.reduce((max, id) => {
