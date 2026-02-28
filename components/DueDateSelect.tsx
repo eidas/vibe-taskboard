@@ -100,39 +100,39 @@ export default function DueDateSelect({
             onBlur?.()
           }
         }}
-        className={`cursor-pointer text-sm px-1 min-w-[80px] outline-none focus:bg-blue-50 rounded whitespace-nowrap ${
-          isFocused ? 'bg-blue-50' : ''
-        } ${!label ? 'text-gray-400' : ''}`}
+        className={`cursor-pointer text-sm px-1 min-w-[80px] outline-none focus:bg-accent-muted rounded whitespace-nowrap ${
+          isFocused ? 'bg-accent-muted' : ''
+        } ${!label ? 'text-text-tertiary' : ''}`}
       >
         {label || 'なし'}
       </div>
 
       {open && (
-        <div className="absolute z-50 top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-lg min-w-[180px]">
+        <div className="absolute z-50 top-full left-0 mt-1 bg-surface-raised border border-border-default rounded-lg shadow-2xl animate-scale-in min-w-[180px]">
           {DUE_TYPE_OPTIONS.map(opt => (
             <button
               key={opt.value}
               onClick={() => handleSelect(opt.value)}
-              className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-blue-50 ${
-                selectedType === opt.value ? 'bg-blue-100 font-medium' : ''
+              className={`block w-full text-left px-3 py-1.5 text-sm text-text-primary hover:bg-surface-raised ${
+                selectedType === opt.value ? 'bg-accent-muted font-medium' : ''
               }`}
             >
               {opt.label}
             </button>
           ))}
           {selectedType === 'specific_date' && (
-            <div className="px-3 py-2 border-t border-gray-100 flex gap-2 items-center">
+            <div className="px-3 py-2 border-t border-border-subtle flex gap-2 items-center">
               <input
                 type="date"
                 value={dateInput}
                 onChange={e => setDateInput(e.target.value)}
-                className="border border-gray-300 rounded px-2 py-1 text-xs flex-1"
+                className="bg-surface-raised border border-border-default rounded px-2 py-1 text-xs text-text-primary focus-glow flex-1"
                 autoFocus
                 onKeyDown={e => e.key === 'Enter' && handleDateConfirm()}
               />
               <button
                 onClick={handleDateConfirm}
-                className="text-xs bg-blue-600 text-white rounded px-2 py-1 hover:bg-blue-700"
+                className="text-xs btn-gradient rounded px-2 py-1"
               >
                 OK
               </button>

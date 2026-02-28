@@ -75,35 +75,35 @@ export default function TaskEditDialog({ task, open, onClose, onSave }: TaskEdit
   return (
     <Dialog.Root open={open} onOpenChange={open => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/30 z-50" />
+        <Dialog.Overlay className="fixed inset-0 bg-overlay-bg z-50 animate-fade-in" />
         <Dialog.Content
-          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-lg shadow-xl w-full max-w-md p-6"
+          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 glass-panel rounded-xl shadow-2xl w-full max-w-md p-6 animate-scale-in border border-border-glass"
           onKeyDown={handleKeyDown}
         >
-          <Dialog.Title className="text-lg font-semibold text-gray-900 mb-4">
+          <Dialog.Title className="text-lg font-semibold text-text-primary mb-4">
             タスクの編集
           </Dialog.Title>
 
           <div className="space-y-4">
             {/* タスク名 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">タスク名</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">タスク名</label>
               <input
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full bg-surface-raised border border-border-default rounded px-3 py-2 text-sm text-text-primary focus-glow"
                 autoFocus
               />
             </div>
 
             {/* 期日 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">期日</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">期日</label>
               <select
                 value={dueType}
                 onChange={e => setDueType(e.target.value as DueType)}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full bg-surface-raised border border-border-default rounded px-3 py-2 text-sm text-text-primary focus-glow"
               >
                 {DUE_TYPE_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -114,14 +114,14 @@ export default function TaskEditDialog({ task, open, onClose, onSave }: TaskEdit
                   type="date"
                   value={dueDate}
                   onChange={e => setDueDate(e.target.value)}
-                  className="mt-2 w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="mt-2 w-full bg-surface-raised border border-border-default rounded px-3 py-2 text-sm text-text-primary focus-glow"
                 />
               )}
             </div>
 
             {/* 見積り時間 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">見積り時間</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">見積り時間</label>
               <div className="flex gap-2">
                 <input
                   type="number"
@@ -130,12 +130,12 @@ export default function TaskEditDialog({ task, open, onClose, onSave }: TaskEdit
                   value={estValue}
                   onChange={e => setEstValue(e.target.value)}
                   placeholder="例: 1.5"
-                  className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="flex-1 bg-surface-raised border border-border-default rounded px-3 py-2 text-sm text-text-primary focus-glow"
                 />
                 <select
                   value={estUnit}
                   onChange={e => setEstUnit(e.target.value as TimeUnit)}
-                  className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="bg-surface-raised border border-border-default rounded px-3 py-2 text-sm text-text-primary focus-glow"
                 >
                   {TIME_UNITS.map(u => (
                     <option key={u.value} value={u.value}>{u.label}</option>
@@ -146,7 +146,7 @@ export default function TaskEditDialog({ task, open, onClose, onSave }: TaskEdit
 
             {/* 実績時間 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">実績時間</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">実績時間</label>
               <div className="flex gap-2">
                 <input
                   type="number"
@@ -155,12 +155,12 @@ export default function TaskEditDialog({ task, open, onClose, onSave }: TaskEdit
                   value={actValue}
                   onChange={e => setActValue(e.target.value)}
                   placeholder="例: 2"
-                  className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="flex-1 bg-surface-raised border border-border-default rounded px-3 py-2 text-sm text-text-primary focus-glow"
                 />
                 <select
                   value={actUnit}
                   onChange={e => setActUnit(e.target.value as TimeUnit)}
-                  className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="bg-surface-raised border border-border-default rounded px-3 py-2 text-sm text-text-primary focus-glow"
                 >
                   {TIME_UNITS.map(u => (
                     <option key={u.value} value={u.value}>{u.label}</option>
@@ -171,12 +171,12 @@ export default function TaskEditDialog({ task, open, onClose, onSave }: TaskEdit
 
             {/* 備考 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">備考</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">備考</label>
               <textarea
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
                 rows={4}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-y"
+                className="w-full bg-surface-raised border border-border-default rounded px-3 py-2 text-sm text-text-primary focus-glow resize-y"
               />
             </div>
           </div>
@@ -184,13 +184,13 @@ export default function TaskEditDialog({ task, open, onClose, onSave }: TaskEdit
           <div className="flex justify-end gap-2 mt-6">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 text-sm border border-border-default rounded text-text-secondary hover:bg-surface-raised transition-all active:scale-[0.97]"
             >
               キャンセル
             </button>
             <button
               onClick={handleSave}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 text-sm btn-gradient rounded"
             >
               保存
             </button>

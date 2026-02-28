@@ -31,13 +31,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 w-full max-w-sm">
-        <h1 className="text-xl font-semibold text-gray-900 mb-6">タスク管理システム</h1>
+    <div className="min-h-screen bg-base flex items-center justify-center p-4">
+      <div className="glass-panel rounded-lg shadow-xl border border-border-default p-8 w-full max-w-sm">
+        <h1 className="text-xl font-semibold text-text-primary mb-6">タスク管理システム</h1>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="email" className="block text-sm font-medium text-text-secondary mb-1">
               メールアドレス
             </label>
             <input
@@ -47,12 +47,12 @@ export default function LoginPage() {
               onChange={e => setEmail(e.target.value)}
               required
               placeholder="you@example.com"
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full bg-surface-raised border border-border-default rounded px-3 py-2 text-sm text-text-primary focus-glow placeholder:text-text-tertiary"
             />
           </div>
 
           {message && (
-            <p className={`text-sm ${message.type === 'error' ? 'text-red-600' : 'text-green-600'}`}>
+            <p className={`text-sm ${message.type === 'error' ? 'text-danger' : 'text-success'}`}>
               {message.text}
             </p>
           )}
@@ -60,7 +60,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading || !email}
-            className="w-full bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full btn-gradient rounded px-4 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? '送信中...' : 'ログインリンクを送信'}
           </button>

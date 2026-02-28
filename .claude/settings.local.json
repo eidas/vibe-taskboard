@@ -6,7 +6,8 @@
       "Bash(xargs:*)",
       "Bash(npx next lint --quiet)",
       "Bash(npx next lint:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(ls:*)"
     ]
   }
 }

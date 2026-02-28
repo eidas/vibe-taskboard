@@ -1,7 +1,166 @@
 @import "tailwindcss";
 
+@theme {
+  /* ─── Dark Palette ─────────────────────── */
+  --color-base: #0f0f13;
+  --color-surface: #16161e;
+  --color-surface-raised: #1e1e2a;
+  --color-surface-overlay: #252535;
+
+  --color-glass: rgba(22, 22, 30, 0.75);
+  --color-glass-hover: rgba(30, 30, 42, 0.8);
+
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-border-default: rgba(255, 255, 255, 0.1);
+  --color-border-strong: rgba(255, 255, 255, 0.15);
+  --color-border-glass: rgba(255, 255, 255, 0.08);
+
+  --color-text-primary: #e8e8ed;
+  --color-text-secondary: #9898a6;
+  --color-text-tertiary: #5e5e6e;
+
+  --color-accent-start: #6366f1;
+  --color-accent-end: #22d3ee;
+  --color-accent-solid: #818cf8;
+  --color-accent-muted: rgba(99, 102, 241, 0.15);
+  --color-accent-glow: rgba(99, 102, 241, 0.4);
+
+  --color-danger: #f87171;
+  --color-danger-muted: rgba(248, 113, 113, 0.15);
+  --color-success: #34d399;
+
+  --color-drag-bg: rgba(99, 102, 241, 0.1);
+  --color-overlay-bg: rgba(0, 0, 0, 0.6);
+
+  /* ─── Animation durations ────────────── */
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-fade-in-up: fade-in-up 0.25s ease-out;
+  --animate-scale-in: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-check-pop: check-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ─── Keyframes ──────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes check-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+/* ─── Base Styles ────────────────────────── */
 body {
-  background: #ffffff;
-  color: #171717;
+  background: var(--color-base);
+  color: var(--color-text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ─── Custom checkbox styling ────────────── */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1rem;
+  height: 1rem;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+input[type="checkbox"]:checked {
+  background: linear-gradient(135deg, var(--color-accent-start), var(--color-accent-end));
+  border-color: transparent;
+  animation: check-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 0.5px;
+  width: 5px;
+  height: 9px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+input[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-accent-glow);
+}
+
+/* ─── Scrollbar ─────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 3px;
+}
+
+/* ─── Native input dark overrides ────────── */
+input[type="date"],
+input[type="number"],
+select,
+textarea {
+  color-scheme: dark;
+}
+
+/* ─── Gradient button utility class ──────── */
+.btn-gradient {
+  background: linear-gradient(135deg, var(--color-accent-start), var(--color-accent-end));
+  color: white;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+.btn-gradient:hover {
+  background: linear-gradient(135deg, #7c7ff5, #3de0f5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+.btn-gradient:active {
+  transform: scale(0.97);
+  box-shadow: none;
+}
+.btn-gradient:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ─── Glass panel utility ────────────────── */
+.glass-panel {
+  background: var(--color-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-border-glass);
+}
+
+/* ─── Focus glow utility ─────────────────── */
+.focus-glow:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-accent-glow);
+  border-color: var(--color-accent-solid);
 }

@@ -97,7 +97,7 @@ export default function InlineEdit({
         onChange={e => setDraft(e.target.value)}
         onKeyDown={handleInputKeyDown}
         onBlur={commitEdit}
-        className={`w-full border-0 outline-none bg-blue-100 px-1 text-sm ${className}`}
+        className={`w-full border-0 outline-none bg-accent-muted text-text-primary px-1 text-sm ${className}`}
       />
     )
   }
@@ -111,9 +111,9 @@ export default function InlineEdit({
       onKeyDown={handleCellKeyDown}
       onFocus={onFocus}
       onBlur={onBlur}
-      className={`cursor-text min-h-6 w-full text-sm px-1 outline-none focus:bg-blue-100 rounded ${
-        !value ? 'text-gray-400' : ''
-      } ${isFocused ? 'bg-blue-100' : ''} ${className}`}
+      className={`cursor-text min-h-6 w-full text-sm px-1 outline-none focus:bg-accent-muted rounded ${
+        !value ? 'text-text-tertiary' : ''
+      } ${isFocused ? 'bg-accent-muted' : ''} ${className}`}
     >
       {value || placeholder}
     </div>

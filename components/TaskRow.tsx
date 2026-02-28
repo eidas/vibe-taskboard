@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { FlatTask, Task, DueType, TimeUnit } from '@/lib/types'
@@ -13,7 +13,7 @@ interface TaskRowProps {
   task: FlatTask
   collapsed: boolean
   onToggleCollapse: (id: string) => void
-  focusedId: string | null
+  isFocused: boolean
   focusedColumn: 'name' | 'due' | 'time' | 'checkbox' | null
   onFocus: (id: string, column: 'name' | 'due' | 'time' | 'checkbox') => void
   onUpdate: (id: string, updates: Partial<Task>) => void
@@ -25,11 +25,11 @@ interface TaskRowProps {
   onFocusPrev: (id: string) => void
 }
 
-export default function TaskRow({
+export default memo(function TaskRow({
   task,
   collapsed,
   onToggleCollapse,
-  focusedId,
+  isFocused,
   focusedColumn,
   onFocus,
   onUpdate,
@@ -42,7 +42,6 @@ export default function TaskRow({
 }: TaskRowProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const isFocused = focusedId === task.id
 
   useEffect(() => setMounted(true), [])
 
@@ -92,11 +91,11 @@ export default function TaskRow({
       <tr
         ref={setNodeRef}
         style={style}
-        className={`border-b border-gray-100 hover:bg-gray-50 group ${isDragging ? 'bg-blue-50' : ''}`}
+        className={`border-b border-border-subtle group transition-[background-color,box-shadow] duration-150 ease-out hover:bg-surface-raised hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)] ${isDragging ? 'bg-accent-muted shadow-lg' : ''}`}
         onKeyDown={handleRowKeyDown}
       >
         {/* ドラッグハンドル */}
-        <td className="w-6 py-1 pl-1 text-gray-400 cursor-grab active:cursor-grabbing" {...dragProps}>
+        <td className="w-6 py-1 pl-1 text-text-tertiary hover:text-text-secondary cursor-grab active:cursor-grabbing transition-colors" {...dragProps}>
           <span className="text-xs select-none">=</span>
         </td>
 
@@ -109,7 +108,7 @@ export default function TaskRow({
               onChange={e => onToggleComplete(task.id, e.target.checked)}
               onFocus={() => onFocus(task.id, 'checkbox')}
               onKeyDown={handleCheckboxKeyDown}
-              className="w-4 h-4 cursor-pointer accent-blue-600"
+              className="w-4 h-4 cursor-pointer"
             />
           </div>
         </td>
@@ -120,7 +119,7 @@ export default function TaskRow({
             {task.hasChildren ? (
               <button
                 onClick={() => onToggleCollapse(task.id)}
-                className="w-4 h-4 flex items-center justify-center text-gray-400 hover:text-gray-600 flex-shrink-0 mr-0.5"
+                className="w-4 h-4 flex items-center justify-center text-text-tertiary hover:text-text-secondary flex-shrink-0 mr-0.5 transition-colors"
                 tabIndex={-1}
                 aria-label={collapsed ? '子タスクを展開' : '子タスクを折りたたむ'}
               >
@@ -144,7 +143,7 @@ export default function TaskRow({
               onFocus={() => onFocus(task.id, 'name')}
               onArrowUp={() => onFocusPrev(task.id)}
               onArrowDown={() => onFocusNext(task.id)}
-              className={task.completed ? 'line-through text-gray-400' : ''}
+              className={task.completed ? 'line-through text-text-tertiary' : ''}
             />
           </div>
         </td>
@@ -178,7 +177,7 @@ export default function TaskRow({
         {/* 備考（表示のみ） */}
         <td className="py-1 w-20">
           <span
-            className="text-xs text-gray-500 truncate block px-1 max-w-[80px] cursor-pointer hover:text-gray-700"
+            className="text-xs text-text-tertiary truncate block px-1 max-w-[80px] cursor-pointer hover:text-text-secondary transition-colors"
             title={task.notes}
             onClick={() => setEditDialogOpen(true)}
           >
@@ -190,7 +189,7 @@ export default function TaskRow({
         <td className="py-1 w-8">
           <button
             onClick={() => setEditDialogOpen(true)}
-            className="text-gray-400 hover:text-blue-600 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5"
+            className="text-text-tertiary hover:text-accent-solid transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5"
             title="編集"
             tabIndex={-1}
           >
@@ -205,7 +204,7 @@ export default function TaskRow({
         <td className="py-1 w-8">
           <button
             onClick={() => onDelete(task.id)}
-            className="text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5"
+            className="text-text-tertiary hover:text-danger transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5"
             title="削除"
             tabIndex={-1}
           >
@@ -227,4 +226,4 @@ export default function TaskRow({
       )}
     </>
   )
-}
+})

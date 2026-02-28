@@ -113,14 +113,14 @@ export default function TimeEdit({
               commitEdit()
             }
           }}
-          className="w-16 border border-gray-300 rounded px-1 py-0 text-sm outline-none"
+          className="w-16 bg-surface-raised border border-border-default rounded px-1 py-0 text-sm text-text-primary focus-glow"
           placeholder="0"
         />
         <select
           value={draftUnit}
           onChange={e => setDraftUnit(e.target.value as TimeUnit)}
           onKeyDown={handleInputKeyDown}
-          className="border border-gray-300 rounded px-1 text-xs outline-none"
+          className="bg-surface-raised border border-border-default rounded px-1 text-xs text-text-primary focus-glow"
         >
           {TIME_UNITS.map(u => (
             <option key={u.value} value={u.value}>{u.label}</option>
@@ -137,9 +137,9 @@ export default function TimeEdit({
       onKeyDown={handleCellKeyDown}
       onFocus={onFocus}
       onBlur={onBlur}
-      className={`cursor-text text-sm px-1 min-w-[60px] outline-none focus:bg-blue-50 rounded whitespace-nowrap ${
-        isFocused ? 'bg-blue-50' : ''
-      } ${!displayText ? 'text-gray-400' : ''}`}
+      className={`cursor-text text-sm px-1 min-w-[60px] outline-none focus:bg-accent-muted rounded whitespace-nowrap ${
+        isFocused ? 'bg-accent-muted' : ''
+      } ${!displayText ? 'text-text-tertiary' : ''}`}
     >
       {displayText || '\u00a0'}
     </div>

@@ -20,10 +20,10 @@ export default function FilterButtons({ current, onChange }: FilterButtonsProps)
         <button
           key={btn.value}
           onClick={() => onChange(btn.value)}
-          className={`px-6 py-1.5 border rounded text-sm font-medium transition-colors ${
+          className={`px-6 py-1.5 border rounded text-sm font-medium transition-all duration-150 active:scale-[0.97] ${
             current === btn.value
-              ? 'bg-gray-200 border-gray-400 text-gray-900'
-              : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+              ? 'bg-accent-muted border-accent-solid text-text-primary'
+              : 'bg-surface border-border-default text-text-secondary hover:bg-surface-raised'
           }`}
         >
           {btn.label}

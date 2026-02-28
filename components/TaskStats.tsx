@@ -16,15 +16,15 @@ export default function TaskStats({ tasks }: TaskStatsProps) {
   const dailyDone = dailyTasks.filter(t => t.completed).length
 
   return (
-    <div className="text-sm text-gray-700 space-y-0.5">
+    <div className="text-sm text-text-secondary space-y-0.5">
       <div className="flex gap-4">
-        <span className="w-28 text-gray-600">今日のタスク</span>
+        <span className="w-28 text-text-tertiary">今日のタスク</span>
         <span>
           全体 {todayTotal}件、完了 {todayDone}件、未完了 {todayTotal - todayDone}件
         </span>
       </div>
       <div className="flex gap-4">
-        <span className="w-28 text-gray-600">毎日のタスク</span>
+        <span className="w-28 text-text-tertiary">毎日のタスク</span>
         <span>
           全体 {dailyTotal}件、完了 {dailyDone}件、未完了 {dailyTotal - dailyDone}件
         </span>

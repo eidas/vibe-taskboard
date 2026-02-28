@@ -32,16 +32,17 @@ import TaskRow from './TaskRow'
 
 interface TaskBoardProps {
   initialTasks: Task[]
+  initialCollapsedIds: string[]
   userId: string
 }
 
-export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
+export default function TaskBoard({ initialTasks, initialCollapsedIds, userId }: TaskBoardProps) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
   const [filter, setFilter] = useState<FilterType>('all')
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const [focusedColumn, setFocusedColumn] = useState<'name' | 'due' | 'time' | 'checkbox' | null>(null)
   const [headerCollapsed, setHeaderCollapsed] = useState(false)
-  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set(initialCollapsedIds))
   const headerRef = useRef<HTMLDivElement>(null)
   const [headerHeight, setHeaderHeight] = useState(0)
   const supabase = createClient()
@@ -134,11 +135,16 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
   const handleToggleCollapse = useCallback((id: string) => {
     setCollapsedIds(prev => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(id)) {
+        next.delete(id)
+        supabase.from('task_collapsed_states').delete().eq('user_id', userId).eq('task_id', id).then()
+      } else {
+        next.add(id)
+        supabase.from('task_collapsed_states').insert({ user_id: userId, task_id: id }).then()
+      }
       return next
     })
-  }, [])
+  }, [supabase, userId])
 
   // ─── フラットリスト（表示用） ─────────────────────────────────────────
   const flatList = buildFlatList(tasks)
@@ -353,6 +359,12 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
       }
     }
   }, [tasks, supabase])
+
+  // ─── フォーカス設定 ──────────────────────────────────────────────────
+  const handleFocus = useCallback((id: string, column: 'name' | 'due' | 'time' | 'checkbox') => {
+    setFocusedId(id)
+    setFocusedColumn(column)
+  }, [])
 
   // ─── フォーカス移動 ──────────────────────────────────────────────────
   const handleFocusNext = useCallback((id: string) => {
@@ -619,24 +631,24 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
   const showRootAddButton = true
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-base">
       {/* Stickyヘッダー */}
-      <div ref={headerRef} className="sticky top-0 z-20 bg-white border-b border-gray-200">
+      <div ref={headerRef} className="sticky top-0 z-20 bg-surface border-b border-border-default">
         {/* タイトルバー（常に表示） */}
         <div className="px-6 py-2 flex items-center justify-between">
-          <h1 className="text-base font-medium text-gray-800">タスク管理ボード</h1>
+          <h1 className="text-base font-medium text-text-primary">タスク管理ボード</h1>
           <div className="flex items-center gap-3">
             <form action="/auth/signout" method="post">
               <button
                 type="submit"
-                className="text-xs text-gray-500 hover:text-gray-700"
+                className="text-xs text-text-tertiary hover:text-text-secondary transition-colors"
               >
                 ログアウト
               </button>
             </form>
             <button
               onClick={() => setHeaderCollapsed(prev => !prev)}
-              className="text-gray-400 hover:text-gray-600 p-1"
+              className="text-text-tertiary hover:text-text-secondary p-1 transition-colors"
               aria-label={headerCollapsed ? 'ヘッダーを展開' : 'ヘッダーを折りたたむ'}
             >
               <svg
@@ -672,51 +684,51 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
             strategy={verticalListSortingStrategy}
           >
         <table className="w-full text-sm border-collapse" style={{ tableLayout: 'fixed' }}>
-          <thead className="sticky z-10 bg-white" style={{ top: `${headerHeight}px` }}>
-            <tr className="border-b border-gray-300">
+          <thead className="sticky z-10 bg-surface" style={{ top: `${headerHeight}px` }}>
+            <tr className="border-b border-border-strong">
               <th className="w-6"></th>
               <th className="w-6"></th>
               <th
-                className="text-left py-1.5 px-1 font-medium text-gray-700 relative"
+                className="text-left py-1.5 px-1 font-medium text-text-secondary relative"
                 style={colWidths.name != null ? { width: colWidths.name } : undefined}
               >
                 タスク名
                 <div
                   onMouseDown={(e) => handleResizeStart('name', e)}
-                  className="absolute top-0 bottom-0 cursor-col-resize hover:bg-blue-400 z-10"
+                  className="absolute top-0 bottom-0 cursor-col-resize hover:bg-accent-solid z-10"
                   style={{ right: -2, width: 5 }}
                 />
               </th>
               <th
-                className={`text-left py-1.5 px-1 font-medium text-gray-700 relative${colWidths.due == null ? ' w-36' : ''}`}
+                className={`text-left py-1.5 px-1 font-medium text-text-secondary relative${colWidths.due == null ? ' w-36' : ''}`}
                 style={colWidths.due != null ? { width: colWidths.due } : undefined}
               >
                 期日
                 <div
                   onMouseDown={(e) => handleResizeStart('due', e)}
-                  className="absolute top-0 bottom-0 cursor-col-resize hover:bg-blue-400 z-10"
+                  className="absolute top-0 bottom-0 cursor-col-resize hover:bg-accent-solid z-10"
                   style={{ right: -2, width: 5 }}
                 />
               </th>
               <th
-                className={`text-left py-1.5 px-1 font-medium text-gray-700 relative${colWidths.time == null ? ' w-24' : ''}`}
+                className={`text-left py-1.5 px-1 font-medium text-text-secondary relative${colWidths.time == null ? ' w-24' : ''}`}
                 style={colWidths.time != null ? { width: colWidths.time } : undefined}
               >
                 見積り時間
                 <div
                   onMouseDown={(e) => handleResizeStart('time', e)}
-                  className="absolute top-0 bottom-0 cursor-col-resize hover:bg-blue-400 z-10"
+                  className="absolute top-0 bottom-0 cursor-col-resize hover:bg-accent-solid z-10"
                   style={{ right: -2, width: 5 }}
                 />
               </th>
               <th
-                className={`text-left py-1.5 px-1 font-medium text-gray-700 relative${colWidths.notes == null ? ' w-20' : ''}`}
+                className={`text-left py-1.5 px-1 font-medium text-text-secondary relative${colWidths.notes == null ? ' w-20' : ''}`}
                 style={colWidths.notes != null ? { width: colWidths.notes } : undefined}
               >
                 備考
                 <div
                   onMouseDown={(e) => handleResizeStart('notes', e)}
-                  className="absolute top-0 bottom-0 cursor-col-resize hover:bg-blue-400 z-10"
+                  className="absolute top-0 bottom-0 cursor-col-resize hover:bg-accent-solid z-10"
                   style={{ right: -2, width: 5 }}
                 />
               </th>
@@ -731,9 +743,9 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
                       task={task}
                       collapsed={collapsedIds.has(task.id)}
                       onToggleCollapse={handleToggleCollapse}
-                      focusedId={focusedId}
-                      focusedColumn={focusedColumn}
-                      onFocus={(id, col) => { setFocusedId(id); setFocusedColumn(col) }}
+                      isFocused={focusedId === task.id}
+                      focusedColumn={focusedId === task.id ? focusedColumn : null}
+                      onFocus={handleFocus}
                       onUpdate={handleUpdate}
                       onDelete={handleDelete}
                       onToggleComplete={handleToggleComplete}
@@ -749,7 +761,7 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
                           <div style={{ paddingLeft: `${(btn.level - 1) * 20 + 4}px` }}>
                             <button
                               onClick={() => handleAdd(btn.parentId, btn.level)}
-                              className="text-blue-500 hover:text-blue-700 text-sm py-0.5 flex items-center gap-0.5"
+                              className="text-accent-solid hover:text-accent-start transition-colors text-sm py-0.5 flex items-center gap-0.5"
                             >
                               <span>+</span>
                               <span>追加</span>
@@ -767,7 +779,7 @@ export default function TaskBoard({ initialTasks, userId }: TaskBoardProps) {
                     <td colSpan={6}>
                       <button
                         onClick={() => handleAdd(null, 1)}
-                        className="text-blue-500 hover:text-blue-700 text-sm py-0.5 flex items-center gap-0.5 ml-1"
+                        className="text-accent-solid hover:text-accent-start transition-colors text-sm py-0.5 flex items-center gap-0.5 pl-1"
                       >
                         <span>+</span>
                         <span>追加</span>
