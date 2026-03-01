@@ -747,7 +747,7 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
                 />
               </th>
               <th
-                className={`text-left py-1.5 px-1 font-medium text-text-secondary relative${colWidths.time == null ? ' w-24' : ''}`}
+                className={`hidden sm:table-cell text-left py-1.5 px-1 font-medium text-text-secondary relative${colWidths.time == null ? ' w-24' : ''}`}
                 style={colWidths.time != null ? { width: colWidths.time } : undefined}
               >
                 見積り時間
@@ -758,7 +758,7 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
                 />
               </th>
               <th
-                className={`text-left py-1.5 px-1 font-medium text-text-secondary relative${colWidths.notes == null ? ' w-20' : ''}`}
+                className={`hidden sm:table-cell text-left py-1.5 px-1 font-medium text-text-secondary relative${colWidths.notes == null ? ' w-20' : ''}`}
                 style={colWidths.notes != null ? { width: colWidths.notes } : undefined}
               >
                 備考

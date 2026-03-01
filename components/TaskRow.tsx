@@ -114,8 +114,8 @@ export default memo(function TaskRow({
         </td>
 
         {/* タスク名 */}
-        <td className="py-1 min-w-[200px]">
-          <div style={{ paddingLeft: `${indent}px` }} className="flex items-center">
+        <td className="py-1 min-w-0 sm:min-w-[200px] max-w-0">
+          <div style={{ paddingLeft: `${indent}px` }} className="flex items-center min-w-0">
             {task.hasChildren ? (
               <button
                 onClick={() => onToggleCollapse(task.id)}
@@ -143,7 +143,7 @@ export default memo(function TaskRow({
               onFocus={() => onFocus(task.id, 'name')}
               onArrowUp={() => onFocusPrev(task.id)}
               onArrowDown={() => onFocusNext(task.id)}
-              className={task.completed ? 'line-through text-text-tertiary' : ''}
+              className={`truncate ${task.completed ? 'line-through text-text-tertiary' : ''}`}
             />
           </div>
         </td>
@@ -162,7 +162,7 @@ export default memo(function TaskRow({
         </td>
 
         {/* 見積り時間 */}
-        <td className="py-1 w-24">
+        <td className="hidden sm:table-cell py-1 w-24">
           <TimeEdit
             value={task.estimated_time_value}
             unit={task.estimated_time_unit}
@@ -175,7 +175,7 @@ export default memo(function TaskRow({
         </td>
 
         {/* 備考（表示のみ） */}
-        <td className="py-1 w-20">
+        <td className="hidden sm:table-cell py-1 w-20">
           <span
             className="text-xs text-text-tertiary truncate block px-1 max-w-[80px] cursor-pointer hover:text-text-secondary transition-colors"
             title={task.notes}
