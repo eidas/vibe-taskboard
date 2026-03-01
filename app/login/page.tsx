@@ -33,7 +33,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-base flex items-center justify-center p-4">
       <div className="glass-panel rounded-lg shadow-xl border border-border-default p-8 w-full max-w-sm">
-        <h1 className="text-xl font-semibold text-text-primary mb-6">タスク管理システム</h1>
+        <h1 className="text-xl font-semibold text-text-primary mb-6">Taskaru</h1>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>

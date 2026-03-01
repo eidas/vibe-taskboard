@@ -657,7 +657,7 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
       <div ref={headerRef} className="sticky top-0 z-20 bg-surface border-b border-border-default">
         {/* タイトルバー（常に表示） */}
         <div className="px-6 py-2 flex items-center justify-between">
-          <h1 className="text-base font-medium text-text-primary">タスク管理ボード</h1>
+          <h1 className="text-base font-medium text-text-primary">タスク管理ボード Taskaru</h1>
           <div className="flex items-center gap-3">
             <button
               onClick={handleToggleTheme}
