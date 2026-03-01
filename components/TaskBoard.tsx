@@ -115,6 +115,7 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
       supabase
         .from('tasks')
         .update({ completed: false, completed_at: null })
+        .eq('user_id', userId)
         .in('id', toReset)
         .then(() => {})
     }
@@ -127,6 +128,7 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
       supabase
         .from('tasks')
         .update({ due_type: 'this_year' })
+        .eq('user_id', userId)
         .in('id', toUpgrade)
         .then(() => {})
     }
@@ -202,8 +204,8 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
   // ─── タスク更新 ──────────────────────────────────────────────────────
   const handleUpdate = useCallback(async (id: string, updates: Partial<Task>) => {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t))
-    await supabase.from('tasks').update(updates).eq('id', id)
-  }, [supabase])
+    await supabase.from('tasks').update(updates).eq('user_id', userId).eq('id', id)
+  }, [supabase, userId])
 
   // ─── 完了切り替え（子タスクにカスケード） ────────────────────────────
   const handleToggleComplete = useCallback(async (id: string, completed: boolean) => {
@@ -222,8 +224,9 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
     await supabase
       .from('tasks')
       .update({ completed, completed_at: completed ? now : null })
+      .eq('user_id', userId)
       .in('id', allIds)
-  }, [tasks, supabase])
+  }, [tasks, supabase, userId])
 
   // ─── タスク追加 ──────────────────────────────────────────────────────
   const handleAdd = useCallback(async (parentId: string | null, level: number) => {
@@ -291,8 +294,8 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
     setTasks(prev => prev.map(t =>
       allIds.includes(t.id) ? { ...t, archived: true } : t
     ))
-    await supabase.from('tasks').update({ archived: true }).in('id', allIds)
-  }, [tasks, supabase])
+    await supabase.from('tasks').update({ archived: true }).eq('user_id', userId).in('id', allIds)
+  }, [tasks, supabase, userId])
 
   // ─── レベル上げ ──────────────────────────────────────────────────────
   const handleLevelUp = useCallback(async (id: string) => {
@@ -324,15 +327,15 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
       return t
     }))
 
-    await supabase.from('tasks').update(updates).eq('id', id)
+    await supabase.from('tasks').update(updates).eq('user_id', userId).eq('id', id)
     // 子孫のレベルも更新
     for (const descId of descendantIds) {
       const desc = tasks.find(t => t.id === descId)
       if (desc) {
-        await supabase.from('tasks').update({ level: desc.level - 1 }).eq('id', descId)
+        await supabase.from('tasks').update({ level: desc.level - 1 }).eq('user_id', userId).eq('id', descId)
       }
     }
-  }, [tasks, supabase])
+  }, [tasks, supabase, userId])
 
   // ─── レベル下げ ──────────────────────────────────────────────────────
   const handleLevelDown = useCallback(async (id: string) => {
@@ -369,14 +372,14 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
       return t
     }))
 
-    await supabase.from('tasks').update(updates).eq('id', id)
+    await supabase.from('tasks').update(updates).eq('user_id', userId).eq('id', id)
     for (const descId of descendantIds) {
       const desc = tasks.find(t => t.id === descId)
       if (desc) {
-        await supabase.from('tasks').update({ level: desc.level + 1 }).eq('id', descId)
+        await supabase.from('tasks').update({ level: desc.level + 1 }).eq('user_id', userId).eq('id', descId)
       }
     }
-  }, [tasks, supabase])
+  }, [tasks, supabase, userId])
 
   // ─── フォーカス設定 ──────────────────────────────────────────────────
   const handleFocus = useCallback((id: string, column: 'name' | 'due' | 'time' | 'checkbox') => {
@@ -501,12 +504,12 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
         parent_id: newParentId,
         level: newLevel,
         position: newPosition,
-      }).eq('id', activeTask.id)
+      }).eq('user_id', userId).eq('id', activeTask.id)
 
       for (const descId of descendantIds) {
         const desc = tasks.find(t => t.id === descId)
         if (desc) {
-          await supabase.from('tasks').update({ level: desc.level + levelDiff }).eq('id', descId)
+          await supabase.from('tasks').update({ level: desc.level + levelDiff }).eq('user_id', userId).eq('id', descId)
         }
       }
       return
@@ -601,15 +604,15 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
       parent_id: newParentId,
       level: newLevel,
       position: newPosition,
-    }).eq('id', activeTask.id)
+    }).eq('user_id', userId).eq('id', activeTask.id)
 
     for (const descId of descendantIds) {
       const desc = tasks.find(t => t.id === descId)
       if (desc) {
-        await supabase.from('tasks').update({ level: desc.level + levelDiff }).eq('id', descId)
+        await supabase.from('tasks').update({ level: desc.level + levelDiff }).eq('user_id', userId).eq('id', descId)
       }
     }
-  }, [tasks, supabase])
+  }, [tasks, supabase, userId])
 
   // ─── 追加ボタンの表示ロジック ─────────────────────────────────────────
   // レベル1の親タスクごとに、ツリー末尾に1個の子追加ボタンを表示

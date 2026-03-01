@@ -88,6 +88,12 @@ export default function DueDateSelect({
 
   const label = dueTypeToLabel(dueType, dueDate)
 
+  const urgencyClass =
+    dueType === 'today' ? 'text-danger font-semibold' :
+    dueType === 'this_week' ? 'text-warning font-medium' :
+    dueType === 'this_month' ? 'text-accent-solid font-medium' :
+    !label ? 'text-text-tertiary' : ''
+
   return (
     <div ref={containerRef} className="relative">
       <div
@@ -102,7 +108,7 @@ export default function DueDateSelect({
         }}
         className={`cursor-pointer text-sm px-1 min-w-[80px] outline-none focus:bg-accent-muted rounded whitespace-nowrap ${
           isFocused ? 'bg-accent-muted' : ''
-        } ${!label ? 'text-text-tertiary' : ''}`}
+        } ${urgencyClass}`}
       >
         {label || 'なし'}
       </div>
