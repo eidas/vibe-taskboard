@@ -106,7 +106,7 @@ export default function DueDateSelect({
             onBlur?.()
           }
         }}
-        className={`cursor-pointer text-sm px-1 min-w-[80px] outline-none focus:bg-accent-muted rounded whitespace-nowrap ${
+        className={`cursor-pointer text-sm px-1 w-full outline-none focus:bg-accent-muted rounded truncate ${
           isFocused ? 'bg-accent-muted' : ''
         } ${urgencyClass}`}
       >

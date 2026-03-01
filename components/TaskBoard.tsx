@@ -736,7 +736,7 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
                 />
               </th>
               <th
-                className={`text-left py-1.5 px-1 font-medium text-text-secondary relative${colWidths.due == null ? ' w-36' : ''}`}
+                className={`text-left py-1.5 px-1 font-medium text-text-secondary relative${colWidths.due == null ? ' w-24 sm:w-36' : ''}`}
                 style={colWidths.due != null ? { width: colWidths.due } : undefined}
               >
                 期日
