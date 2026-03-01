@@ -14,7 +14,7 @@ export default async function HomePage() {
     redirect('/login')
   }
 
-  const [{ data: tasks, error }, { data: collapsedRows }] = await Promise.all([
+  const [{ data: tasks, error }, { data: collapsedRows }, { data: prefs }] = await Promise.all([
     supabase
       .from('tasks')
       .select('*')
@@ -25,6 +25,11 @@ export default async function HomePage() {
       .from('task_collapsed_states')
       .select('task_id')
       .eq('user_id', user.id),
+    supabase
+      .from('user_preferences')
+      .select('theme')
+      .eq('user_id', user.id)
+      .maybeSingle(),
   ])
 
   if (error) {
@@ -32,11 +37,13 @@ export default async function HomePage() {
   }
 
   const initialCollapsedIds = (collapsedRows ?? []).map((r: { task_id: string }) => r.task_id)
+  const initialTheme = (prefs?.theme as 'dark' | 'light') ?? 'dark'
 
   return (
     <TaskBoard
       initialTasks={(tasks as Task[]) ?? []}
       initialCollapsedIds={initialCollapsedIds}
+      initialTheme={initialTheme}
       userId={user.id}
     />
   )
