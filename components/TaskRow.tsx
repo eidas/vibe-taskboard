@@ -114,7 +114,7 @@ export default memo(function TaskRow({
         </td>
 
         {/* タスク名 */}
-        <td className="py-1 min-w-0 sm:min-w-[200px] max-w-0">
+        <td className="py-1 overflow-hidden">
           <div style={{ paddingLeft: `${indent}px` }} className="flex items-center min-w-0">
             {task.hasChildren ? (
               <button
