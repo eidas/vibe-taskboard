@@ -793,7 +793,7 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
                     {filter === 'all' && addButtonsAfter.get(task.id)?.map((btn, i) => (
                       <tr key={`add-${task.id}-${btn.level}-${i}`}>
                         <td colSpan={2}></td>
-                        <td colSpan={6}>
+                        <td>
                           <div style={{ paddingLeft: `${(btn.level - 1) * 20 + 4}px` }}>
                             <button
                               onClick={() => handleAdd(btn.parentId, btn.level)}
@@ -804,6 +804,10 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
                             </button>
                           </div>
                         </td>
+                        <td></td>
+                        <td className="hidden sm:table-cell"></td>
+                        <td className="hidden sm:table-cell"></td>
+                        <td colSpan={2}></td>
                       </tr>
                     ))}
                   </Fragment>
@@ -812,7 +816,7 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
                 {filter === 'all' && showRootAddButton && (
                   <tr>
                     <td colSpan={2}></td>
-                    <td colSpan={6}>
+                    <td>
                       <button
                         onClick={() => handleAdd(null, 1)}
                         className="text-accent-solid hover:text-accent-start transition-colors text-sm py-0.5 flex items-center gap-0.5 pl-1"
@@ -821,6 +825,10 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
                         <span>追加</span>
                       </button>
                     </td>
+                    <td></td>
+                    <td className="hidden sm:table-cell"></td>
+                    <td className="hidden sm:table-cell"></td>
+                    <td colSpan={2}></td>
                   </tr>
                 )}
           </tbody>
