@@ -149,7 +149,7 @@ export default memo(function TaskRow({
         </td>
 
         {/* 期日 */}
-        <td className="py-1 w-24 sm:w-36">
+        <td className="py-1 w-14 sm:w-36">
           <DueDateSelect
             dueType={task.due_type}
             dueDate={task.due_date}

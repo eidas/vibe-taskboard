@@ -59,7 +59,7 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
     const th = (e.target as HTMLElement).closest('th')!
     const startWidth = th.getBoundingClientRect().width
     const startX = e.clientX
-    const minWidths: Record<string, number> = { name: 100, due: 80, time: 60, notes: 50 }
+    const minWidths: Record<string, number> = { name: 100, due: 56, time: 60, notes: 50 }
     const minW = minWidths[col] ?? 40
 
     resizeColRef.current = { col, startX, startWidth }
@@ -736,7 +736,7 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
                 />
               </th>
               <th
-                className={`text-left py-1.5 px-1 font-medium text-text-secondary relative${colWidths.due == null ? ' w-24 sm:w-36' : ''}`}
+                className={`text-left py-1.5 px-1 font-medium text-text-secondary relative${colWidths.due == null ? ' w-14 sm:w-36' : ''}`}
                 style={colWidths.due != null ? { width: colWidths.due } : undefined}
               >
                 期日
