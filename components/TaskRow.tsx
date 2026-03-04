@@ -63,6 +63,13 @@ export default memo(function TaskRow({
 
   const indent = (task.level - 1) * 20 // px per level
 
+  const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
+    // インタラクティブ要素のクリックは無視
+    const target = e.target as HTMLElement
+    if (target.closest('button, input, select, textarea, a, [role="button"], [contenteditable]')) return
+    setEditDialogOpen(true)
+  }
+
   const handleRowKeyDown = (e: React.KeyboardEvent) => {
     if (e.ctrlKey && e.key === 'ArrowRight') {
       e.preventDefault()
@@ -91,8 +98,9 @@ export default memo(function TaskRow({
       <tr
         ref={setNodeRef}
         style={style}
-        className={`border-b border-border-subtle group transition-[background-color,box-shadow] duration-150 ease-out hover:bg-surface-raised hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)] ${isDragging ? 'bg-accent-muted shadow-lg' : ''}`}
+        className={`border-b border-border-subtle group transition-[background-color,box-shadow] duration-150 ease-out hover:bg-surface-raised hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)] cursor-pointer sm:cursor-default ${isDragging ? 'bg-accent-muted shadow-lg' : ''}`}
         onKeyDown={handleRowKeyDown}
+        onClick={handleRowClick}
       >
         {/* ドラッグハンドル */}
         <td className="w-6 py-1 pl-1 text-text-tertiary hover:text-text-secondary cursor-grab active:cursor-grabbing transition-colors" {...dragProps}>
@@ -149,7 +157,7 @@ export default memo(function TaskRow({
         </td>
 
         {/* 期日 */}
-        <td className="py-1 w-14 sm:w-36">
+        <td className="py-1 w-28 sm:w-36">
           <DueDateSelect
             dueType={task.due_type}
             dueDate={task.due_date}
@@ -185,8 +193,8 @@ export default memo(function TaskRow({
           </span>
         </td>
 
-        {/* 編集ボタン */}
-        <td className="py-1 w-8">
+        {/* 編集ボタン（モバイルでは非表示） */}
+        <td className="hidden sm:table-cell py-1 w-8">
           <button
             onClick={() => setEditDialogOpen(true)}
             className="text-text-tertiary hover:text-accent-solid transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5"
@@ -200,8 +208,8 @@ export default memo(function TaskRow({
           </button>
         </td>
 
-        {/* 削除ボタン */}
-        <td className="py-1 w-8">
+        {/* 削除ボタン（モバイルでは非表示） */}
+        <td className="hidden sm:table-cell py-1 w-8">
           <button
             onClick={() => onDelete(task.id)}
             className="text-text-tertiary hover:text-danger transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5"
@@ -222,6 +230,7 @@ export default memo(function TaskRow({
           open={editDialogOpen}
           onClose={() => setEditDialogOpen(false)}
           onSave={updates => onUpdate(task.id, updates)}
+          onDelete={() => { setEditDialogOpen(false); onDelete(task.id) }}
         />
       )}
     </>
