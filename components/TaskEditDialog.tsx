@@ -10,6 +10,7 @@ interface TaskEditDialogProps {
   open: boolean
   onClose: () => void
   onSave: (updates: Partial<Task>) => void
+  onDelete?: () => void
 }
 
 const TIME_UNITS: { value: TimeUnit; label: string }[] = [
@@ -19,7 +20,7 @@ const TIME_UNITS: { value: TimeUnit; label: string }[] = [
   { value: 'mo', label: 'mo' },
 ]
 
-export default function TaskEditDialog({ task, open, onClose, onSave }: TaskEditDialogProps) {
+export default function TaskEditDialog({ task, open, onClose, onSave, onDelete }: TaskEditDialogProps) {
   const [name, setName] = useState(task.name)
   const [dueType, setDueType] = useState<DueType>(task.due_type)
   const [dueDate, setDueDate] = useState(task.due_date ?? '')
@@ -181,19 +182,29 @@ export default function TaskEditDialog({ task, open, onClose, onSave }: TaskEdit
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 mt-6">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm border border-border-default rounded text-text-secondary hover:bg-surface-raised transition-all active:scale-[0.97]"
-            >
-              キャンセル
-            </button>
-            <button
-              onClick={handleSave}
-              className="px-4 py-2 text-sm btn-gradient rounded"
-            >
-              保存
-            </button>
+          <div className="flex justify-between mt-6">
+            {onDelete ? (
+              <button
+                onClick={onDelete}
+                className="px-4 py-2 text-sm border border-danger-muted rounded text-danger hover:bg-danger-muted transition-all active:scale-[0.97]"
+              >
+                削除
+              </button>
+            ) : <span />}
+            <div className="flex gap-2">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-sm border border-border-default rounded text-text-secondary hover:bg-surface-raised transition-all active:scale-[0.97]"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleSave}
+                className="px-4 py-2 text-sm btn-gradient rounded"
+              >
+                保存
+              </button>
+            </div>
           </div>
         </Dialog.Content>
       </Dialog.Portal>

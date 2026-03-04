@@ -736,7 +736,7 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
                 />
               </th>
               <th
-                className={`text-left py-1.5 px-1 font-medium text-text-secondary relative${colWidths.due == null ? ' w-14 sm:w-36' : ''}`}
+                className={`text-left py-1.5 px-1 font-medium text-text-secondary relative${colWidths.due == null ? ' w-28 sm:w-36' : ''}`}
                 style={colWidths.due != null ? { width: colWidths.due } : undefined}
               >
                 期日
@@ -768,8 +768,8 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
                   style={{ right: -2, width: 5 }}
                 />
               </th>
-              <th className="w-8"></th>
-              <th className="w-8"></th>
+              <th className="hidden sm:table-cell w-8"></th>
+              <th className="hidden sm:table-cell w-8"></th>
             </tr>
           </thead>
           <tbody>
@@ -807,7 +807,8 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
                         <td></td>
                         <td className="hidden sm:table-cell"></td>
                         <td className="hidden sm:table-cell"></td>
-                        <td colSpan={2}></td>
+                        <td className="hidden sm:table-cell"></td>
+                        <td className="hidden sm:table-cell"></td>
                       </tr>
                     ))}
                   </Fragment>
@@ -828,7 +829,8 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
                     <td></td>
                     <td className="hidden sm:table-cell"></td>
                     <td className="hidden sm:table-cell"></td>
-                    <td colSpan={2}></td>
+                    <td className="hidden sm:table-cell"></td>
+                    <td className="hidden sm:table-cell"></td>
                   </tr>
                 )}
           </tbody>
