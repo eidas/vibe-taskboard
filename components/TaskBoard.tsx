@@ -45,6 +45,7 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
   const [headerCollapsed, setHeaderCollapsed] = useState(false)
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set(initialCollapsedIds))
   const [theme, setTheme] = useState<'dark' | 'light'>(initialTheme)
+  const [lastOperatedPerProject, setLastOperatedPerProject] = useState<Map<string, string>>(new Map())
   const headerRef = useRef<HTMLDivElement>(null)
   const [headerHeight, setHeaderHeight] = useState(0)
   const supabase = createClient()
@@ -229,10 +230,21 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
   }, [tasks, supabase, userId])
 
   // ─── タスク追加 ──────────────────────────────────────────────────────
-  const handleAdd = useCallback(async (parentId: string | null, level: number) => {
+  const handleAdd = useCallback(async (parentId: string | null, level: number, afterTaskId?: string) => {
     // 同じ親の兄弟タスクを取得して position を決める
-    const siblings = tasks.filter(t => t.parent_id === parentId && !t.archived)
-    const position = getNextPosition(siblings)
+    const siblings = tasks.filter(t => t.parent_id === parentId && !t.archived).sort((a, b) => a.position - b.position)
+    let position: number
+    if (afterTaskId) {
+      const afterIdx = siblings.findIndex(t => t.id === afterTaskId)
+      if (afterIdx >= 0) {
+        const nextSibling = siblings[afterIdx + 1]
+        position = getPositionBetween(siblings[afterIdx].position, nextSibling?.position ?? null)
+      } else {
+        position = getNextPosition(siblings)
+      }
+    } else {
+      position = getNextPosition(siblings)
+    }
 
     // 親タスクの期日からデフォルト期日を計算
     let defaultDueType: DueType = 'specific_date'
@@ -247,7 +259,7 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
       ? `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
       : null
 
-    const newTask: Omit<Task, 'id' | 'created_at' | 'updated_at'> = {
+    const taskInput: Omit<Task, 'id' | 'created_at' | 'updated_at'> = {
       user_id: userId,
       parent_id: parentId,
       level,
@@ -267,14 +279,31 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
 
     const { data, error } = await supabase
       .from('tasks')
-      .insert(newTask)
+      .insert(taskInput)
       .select()
       .single()
 
     if (!error && data) {
-      setTasks(prev => [...prev, data as Task])
-      // 新規追加したタスクにフォーカス
-      setTimeout(() => setFocusedId(data.id), 50)
+      const newTask = data as Task
+      setTasks(prev => [...prev, newTask])
+      setTimeout(() => setFocusedId(newTask.id), 50)
+      // 新規追加したタスクを「最後に操作したタスク」として記録
+      if (newTask.level >= 2) {
+        let rootTask = parentId ? tasks.find(t => t.id === parentId) : null
+        while (rootTask && rootTask.level > 1 && rootTask.parent_id) {
+          const parent = tasks.find(t => t.id === rootTask!.parent_id)
+          if (!parent) break
+          rootTask = parent
+        }
+        if (rootTask?.level === 1) {
+          const projectId = rootTask.id
+          setLastOperatedPerProject(prev => {
+            const next = new Map(prev)
+            next.set(projectId, newTask.id)
+            return next
+          })
+        }
+      }
     }
   }, [tasks, userId, supabase])
 
@@ -385,7 +414,25 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
   const handleFocus = useCallback((id: string, column: 'name' | 'due' | 'time' | 'checkbox') => {
     setFocusedId(id)
     setFocusedColumn(column)
-  }, [])
+    // プロジェクトごとに最後に操作したタスクを記録（L2以上のタスクのみ）
+    const task = tasks.find(t => t.id === id)
+    if (task && task.level >= 2) {
+      let current = task
+      while (current.parent_id) {
+        const parent = tasks.find(t => t.id === current.parent_id)
+        if (!parent) break
+        current = parent
+      }
+      if (current.level === 1) {
+        const projectId = current.id
+        setLastOperatedPerProject(prev => {
+          const next = new Map(prev)
+          next.set(projectId, id)
+          return next
+        })
+      }
+    }
+  }, [tasks])
 
   // ─── フォーカス移動 ──────────────────────────────────────────────────
   const handleFocusNext = useCallback((id: string) => {
@@ -615,37 +662,57 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
   }, [tasks, supabase, userId])
 
   // ─── 追加ボタンの表示ロジック ─────────────────────────────────────────
-  // レベル1の親タスクごとに、ツリー末尾に1個の子追加ボタンを表示
+  // 最後に操作したタスクの下（サブツリー末尾）に追加ボタンを表示。
+  // 未操作のプロジェクトはデフォルト（ツリー末尾）に表示。
   const fullFlatList = buildFlatList(tasks)
 
-  const addButtonsAfter = new Map<string, { parentId: string | null; level: number }[]>()
+  // プロジェクトごとの全タスクリスト末尾タスクIDを求める
+  const projectDefaultAnchor = new Map<string, string>() // projectId -> fullFlatList末尾タスクID
+  let currentProjectId: string | null = null
+  for (const task of fullFlatList) {
+    if (task.level === 1) currentProjectId = task.id
+    if (currentProjectId) projectDefaultAnchor.set(currentProjectId, task.id)
+  }
 
-  for (let i = 0; i < fullFlatList.length; i++) {
-    const task = fullFlatList[i]
-    const nextTask = fullFlatList[i + 1]
+  const addButtonsAfter = new Map<string, { parentId: string | null; level: number; afterTaskId?: string }[]>()
 
-    // ツリーの末尾判定：次のタスクがL1（新しいツリー）または末尾
-    if (!nextTask || nextTask.level === 1) {
-      const buttons: { parentId: string | null; level: number }[] = []
+  for (const [projectId, defaultAnchorId] of projectDefaultAnchor) {
+    const lastOperatedId = lastOperatedPerProject.get(projectId)
+    const lastOperatedTask = lastOperatedId ? tasks.find(t => t.id === lastOperatedId && !t.archived) : null
 
-      // このタスクが属するL1親を探す
-      let rootParentId: string | null = null
-      for (let j = i; j >= 0; j--) {
-        if (fullFlatList[j].level === 1) {
-          rootParentId = fullFlatList[j].id
-          break
+    let anchorId: string
+    let btn: { parentId: string | null; level: number; afterTaskId?: string }
+
+    if (lastOperatedTask) {
+      // 最後に操作したタスクが visibleList に存在するか確認
+      const lastOpIdx = visibleList.findIndex(t => t.id === lastOperatedId)
+      if (lastOpIdx >= 0) {
+        // サブツリーの末尾タスクを visibleList から探す
+        let subtreeEndIdx = lastOpIdx
+        for (let k = lastOpIdx + 1; k < visibleList.length; k++) {
+          if (visibleList[k].level <= lastOperatedTask.level) break
+          subtreeEndIdx = k
         }
+        anchorId = visibleList[subtreeEndIdx].id
+        btn = {
+          parentId: lastOperatedTask.parent_id,
+          level: lastOperatedTask.level,
+          afterTaskId: lastOperatedId,
+        }
+      } else {
+        // 折りたたまれて非表示の場合はデフォルト位置
+        anchorId = defaultAnchorId
+        btn = { parentId: projectId, level: 2 }
       }
-
-      // L1親の子追加ボタン
-      if (rootParentId) {
-        buttons.push({ parentId: rootParentId, level: 2 })
-      }
-
-      if (buttons.length > 0) {
-        addButtonsAfter.set(task.id, buttons)
-      }
+    } else {
+      // 未操作はデフォルト位置（ツリー末尾）
+      anchorId = defaultAnchorId
+      btn = { parentId: projectId, level: 2 }
     }
+
+    const existing = addButtonsAfter.get(anchorId) ?? []
+    existing.push(btn)
+    addButtonsAfter.set(anchorId, existing)
   }
 
   // ルートレベル追加ボタンは常に表示
@@ -796,7 +863,7 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
                         <td>
                           <div style={{ paddingLeft: `${(btn.level - 1) * 20 + 4}px` }}>
                             <button
-                              onClick={() => handleAdd(btn.parentId, btn.level)}
+                              onClick={() => handleAdd(btn.parentId, btn.level, btn.afterTaskId)}
                               className="text-accent-solid hover:text-accent-start transition-colors text-sm py-0.5 flex items-center gap-0.5"
                             >
                               <span>+</span>
