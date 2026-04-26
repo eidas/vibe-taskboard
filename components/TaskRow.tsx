@@ -154,6 +154,7 @@ export default memo(function TaskRow({
               onArrowUp={() => onFocusPrev(task.id)}
               onArrowDown={() => onFocusNext(task.id)}
               onBlurEmpty={() => onAbandon(task.id)}
+              onCancelEmpty={() => onAbandon(task.id)}
               className={`truncate ${task.completed ? 'line-through text-text-tertiary' : ''}`}
             />
           </div>
