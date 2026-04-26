@@ -66,9 +66,13 @@ export default memo(function TaskRow({
   const indent = (task.level - 1) * 20 // px per level
 
   const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
-    // インタラクティブ要素のクリックは無視
     const target = e.target as HTMLElement
     if (target.closest('button, input, select, textarea, a, [role="button"], [contenteditable]')) return
+    // PCではタスク名セル（3列目）のクリックのみダイアログを開く
+    if (window.matchMedia('(min-width: 640px)').matches) {
+      const row = e.currentTarget as HTMLTableRowElement
+      if (!row.cells[2]?.contains(target)) return
+    }
     setEditDialogOpen(true)
   }
 
