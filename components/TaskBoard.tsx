@@ -756,12 +756,18 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
       } else {
         // 折りたたまれて非表示の場合はデフォルト位置
         anchorId = defaultAnchorId
-        btn = { parentId: projectId, level: 2 }
+        const anchorTask = fullFlatList.find(t => t.id === defaultAnchorId)
+        btn = anchorTask && anchorTask.level >= 2
+          ? { parentId: anchorTask.parent_id, level: anchorTask.level, afterTaskId: defaultAnchorId }
+          : { parentId: projectId, level: 2 }
       }
     } else {
       // 未操作はデフォルト位置（ツリー末尾）
       anchorId = defaultAnchorId
-      btn = { parentId: projectId, level: 2 }
+      const anchorTask = fullFlatList.find(t => t.id === defaultAnchorId)
+      btn = anchorTask && anchorTask.level >= 2
+        ? { parentId: anchorTask.parent_id, level: anchorTask.level, afterTaskId: defaultAnchorId }
+        : { parentId: projectId, level: 2 }
     }
 
     const existing = addButtonsAfter.get(anchorId) ?? []
