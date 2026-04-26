@@ -11,6 +11,7 @@ interface InlineEditProps {
   onFocus?: () => void
   onBlur?: () => void
   onBlurEmpty?: () => void
+  onCancelEmpty?: () => void
   onArrowUp?: () => void
   onArrowDown?: () => void
 }
@@ -24,6 +25,7 @@ export default function InlineEdit({
   onFocus,
   onBlur,
   onBlurEmpty,
+  onCancelEmpty,
   onArrowUp,
   onArrowDown,
 }: InlineEditProps) {
@@ -54,7 +56,10 @@ export default function InlineEdit({
   const cancelEdit = useCallback(() => {
     setDraft(value)
     setEditing(false)
-  }, [value])
+    if (!value.trim()) {
+      onCancelEmpty?.()
+    }
+  }, [value, onCancelEmpty])
 
   useEffect(() => {
     if (editing && inputRef.current) {
