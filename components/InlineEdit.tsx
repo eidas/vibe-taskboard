@@ -56,10 +56,7 @@ export default function InlineEdit({
   const cancelEdit = useCallback(() => {
     setDraft(value)
     setEditing(false)
-    if (!value.trim()) {
-      onCancelEmpty?.()
-    }
-  }, [value, onCancelEmpty])
+  }, [value])
 
   useEffect(() => {
     if (editing && inputRef.current) {
@@ -94,7 +91,17 @@ export default function InlineEdit({
       commitEdit()
     } else if (e.key === 'Escape') {
       e.preventDefault()
-      cancelEdit()
+      if (!value.trim()) {
+        if (draft.trim()) {
+          // 1回目のEscape: 入力をクリアして編集継続
+          setDraft('')
+        } else {
+          // 2回目のEscape: 新規タスク作成をキャンセル
+          onCancelEmpty?.()
+        }
+      } else {
+        cancelEdit()
+      }
     }
   }
 
