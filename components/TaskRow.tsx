@@ -17,6 +17,7 @@ interface TaskRowProps {
   focusedColumn: 'name' | 'due' | 'time' | 'checkbox' | null
   onFocus: (id: string, column: 'name' | 'due' | 'time' | 'checkbox') => void
   onUpdate: (id: string, updates: Partial<Task>) => void
+  onAbandon: (id: string) => void
   onDelete: (id: string) => void
   onToggleComplete: (id: string, completed: boolean) => void
   onLevelUp: (id: string) => void
@@ -33,6 +34,7 @@ export default memo(function TaskRow({
   focusedColumn,
   onFocus,
   onUpdate,
+  onAbandon,
   onDelete,
   onToggleComplete,
   onLevelUp,
@@ -151,6 +153,7 @@ export default memo(function TaskRow({
               onFocus={() => onFocus(task.id, 'name')}
               onArrowUp={() => onFocusPrev(task.id)}
               onArrowDown={() => onFocusNext(task.id)}
+              onBlurEmpty={() => onAbandon(task.id)}
               className={`truncate ${task.completed ? 'line-through text-text-tertiary' : ''}`}
             />
           </div>

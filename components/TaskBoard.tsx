@@ -46,6 +46,7 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set(initialCollapsedIds))
   const [theme, setTheme] = useState<'dark' | 'light'>(initialTheme)
   const [lastOperatedPerProject, setLastOperatedPerProject] = useState<Map<string, string>>(new Map())
+  const [pendingTaskIds, setPendingTaskIds] = useState<Set<string>>(new Set())
   const headerRef = useRef<HTMLDivElement>(null)
   const [headerHeight, setHeaderHeight] = useState(0)
   const supabase = createClient()
@@ -204,9 +205,50 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
 
   // ─── タスク更新 ──────────────────────────────────────────────────────
   const handleUpdate = useCallback(async (id: string, updates: Partial<Task>) => {
+    if (pendingTaskIds.has(id)) {
+      if ('name' in updates) {
+        const name = updates.name ?? ''
+        if (!name.trim()) {
+          setTasks(prev => prev.filter(t => t.id !== id))
+          setPendingTaskIds(prev => { const next = new Set(prev); next.delete(id); return next })
+          return
+        }
+        const localTask = tasks.find(t => t.id === id)
+        if (!localTask) return
+        const { id: _id, created_at: _ca, updated_at: _ua, ...insertBase } = localTask
+        const insertData = { ...insertBase, ...updates }
+        const { data, error } = await supabase.from('tasks').insert(insertData).select().single()
+        if (!error && data) {
+          const realTask = data as Task
+          setTasks(prev => prev.map(t => t.id === id ? realTask : t))
+          setFocusedId(prev => prev === id ? realTask.id : prev)
+          setPendingTaskIds(prev => { const next = new Set(prev); next.delete(id); return next })
+          if (realTask.level >= 2) {
+            let rootTask = realTask.parent_id ? tasks.find(t => t.id === realTask.parent_id) : null
+            while (rootTask && rootTask.level > 1 && rootTask.parent_id) {
+              const parent = tasks.find(t => t.id === rootTask!.parent_id)
+              if (!parent) break
+              rootTask = parent
+            }
+            if (rootTask?.level === 1) {
+              const projectId = rootTask.id
+              setLastOperatedPerProject(prev => {
+                const next = new Map(prev)
+                for (const [k, v] of next) { if (v === id) next.set(k, realTask.id) }
+                next.set(projectId, realTask.id)
+                return next
+              })
+            }
+          }
+        }
+        return
+      }
+      setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t))
+      return
+    }
     setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t))
     await supabase.from('tasks').update(updates).eq('user_id', userId).eq('id', id)
-  }, [supabase, userId])
+  }, [pendingTaskIds, tasks, supabase, userId])
 
   // ─── 完了切り替え（子タスクにカスケード） ────────────────────────────
   const handleToggleComplete = useCallback(async (id: string, completed: boolean) => {
@@ -230,7 +272,13 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
   }, [tasks, supabase, userId])
 
   // ─── タスク追加 ──────────────────────────────────────────────────────
-  const handleAdd = useCallback(async (parentId: string | null, level: number, afterTaskId?: string) => {
+  const handleAdd = useCallback((parentId: string | null, level: number, afterTaskId?: string) => {
+    // 未確定の空タスクが残っていれば破棄してから追加する
+    if (pendingTaskIds.size > 0) {
+      setTasks(prev => prev.filter(t => !pendingTaskIds.has(t.id)))
+      setPendingTaskIds(new Set())
+    }
+
     // 同じ親の兄弟タスクを取得して position を決める
     const siblings = tasks.filter(t => t.parent_id === parentId && !t.archived).sort((a, b) => a.position - b.position)
     let position: number
@@ -259,7 +307,13 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
       ? `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
       : null
 
-    const taskInput: Omit<Task, 'id' | 'created_at' | 'updated_at'> = {
+    // 名前が確定されるまでローカルのみに保持する一時タスク
+    const tempId = crypto.randomUUID()
+    const now = new Date().toISOString()
+    const tempTask: Task = {
+      id: tempId,
+      created_at: now,
+      updated_at: now,
       user_id: userId,
       parent_id: parentId,
       level,
@@ -277,35 +331,35 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
       position,
     }
 
-    const { data, error } = await supabase
-      .from('tasks')
-      .insert(taskInput)
-      .select()
-      .single()
+    setTasks(prev => [...prev, tempTask])
+    setPendingTaskIds(prev => new Set([...prev, tempId]))
+    setTimeout(() => setFocusedId(tempId), 50)
 
-    if (!error && data) {
-      const newTask = data as Task
-      setTasks(prev => [...prev, newTask])
-      setTimeout(() => setFocusedId(newTask.id), 50)
-      // 新規追加したタスクを「最後に操作したタスク」として記録
-      if (newTask.level >= 2) {
-        let rootTask = parentId ? tasks.find(t => t.id === parentId) : null
-        while (rootTask && rootTask.level > 1 && rootTask.parent_id) {
-          const parent = tasks.find(t => t.id === rootTask!.parent_id)
-          if (!parent) break
-          rootTask = parent
-        }
-        if (rootTask?.level === 1) {
-          const projectId = rootTask.id
-          setLastOperatedPerProject(prev => {
-            const next = new Map(prev)
-            next.set(projectId, newTask.id)
-            return next
-          })
-        }
+    // 「最後に操作したタスク」としてアドボタンの位置決めに使う
+    if (level >= 2) {
+      let rootTask = parentId ? tasks.find(t => t.id === parentId) : null
+      while (rootTask && rootTask.level > 1 && rootTask.parent_id) {
+        const parent = tasks.find(t => t.id === rootTask!.parent_id)
+        if (!parent) break
+        rootTask = parent
+      }
+      if (rootTask?.level === 1) {
+        const projectId = rootTask.id
+        setLastOperatedPerProject(prev => {
+          const next = new Map(prev)
+          next.set(projectId, tempId)
+          return next
+        })
       }
     }
-  }, [tasks, userId, supabase])
+  }, [tasks, userId, pendingTaskIds])
+
+  // ─── 未確定の空タスクを破棄 ──────────────────────────────────────────
+  const handleAbandonTask = useCallback((id: string) => {
+    if (!pendingTaskIds.has(id)) return
+    setTasks(prev => prev.filter(t => t.id !== id))
+    setPendingTaskIds(prev => { const next = new Set(prev); next.delete(id); return next })
+  }, [pendingTaskIds])
 
   // ─── タスク削除（アーカイブ） ─────────────────────────────────────────
   const handleDelete = useCallback(async (id: string) => {
@@ -850,6 +904,7 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
                       focusedColumn={focusedId === task.id ? focusedColumn : null}
                       onFocus={handleFocus}
                       onUpdate={handleUpdate}
+                      onAbandon={handleAbandonTask}
                       onDelete={handleDelete}
                       onToggleComplete={handleToggleComplete}
                       onLevelUp={handleLevelUp}

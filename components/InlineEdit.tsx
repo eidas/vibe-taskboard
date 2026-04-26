@@ -10,6 +10,7 @@ interface InlineEditProps {
   isFocused?: boolean
   onFocus?: () => void
   onBlur?: () => void
+  onBlurEmpty?: () => void
   onArrowUp?: () => void
   onArrowDown?: () => void
 }
@@ -22,6 +23,7 @@ export default function InlineEdit({
   isFocused = false,
   onFocus,
   onBlur,
+  onBlurEmpty,
   onArrowUp,
   onArrowDown,
 }: InlineEditProps) {
@@ -44,7 +46,10 @@ export default function InlineEdit({
     if (draft !== value) {
       onSave(draft)
     }
-  }, [draft, value, onSave])
+    if (!draft.trim()) {
+      onBlurEmpty?.()
+    }
+  }, [draft, value, onSave, onBlurEmpty])
 
   const cancelEdit = useCallback(() => {
     setDraft(value)
