@@ -76,16 +76,6 @@ export default memo(function TaskRow({
     setEditDialogOpen(true)
   }
 
-  const handleRowKeyDown = (e: React.KeyboardEvent) => {
-    if (e.ctrlKey && e.key === 'ArrowRight') {
-      e.preventDefault()
-      onLevelDown(task.id)
-    } else if (e.ctrlKey && e.key === 'ArrowLeft') {
-      e.preventDefault()
-      onLevelUp(task.id)
-    }
-  }
-
   const handleCheckboxKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
@@ -104,8 +94,8 @@ export default memo(function TaskRow({
       <tr
         ref={setNodeRef}
         style={style}
+        data-task-id={task.id}
         className={`border-b border-border-subtle group transition-[background-color,box-shadow] duration-150 ease-out hover:bg-surface-raised hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)] cursor-pointer sm:cursor-default ${isDragging ? 'bg-accent-muted shadow-lg' : ''}`}
-        onKeyDown={handleRowKeyDown}
         onClick={handleRowClick}
       >
         {/* ドラッグハンドル */}

@@ -464,6 +464,35 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
     }
   }, [tasks, supabase, userId])
 
+  // ─── Ctrl+矢印キーでレベル上げ下げ（フォーカス位置問わず） ──────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.ctrlKey) return
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+
+      const target = e.target as HTMLElement
+      const tagName = target.tagName.toLowerCase()
+      if (tagName === 'textarea' || tagName === 'select') return
+      if (tagName === 'input' && (target as HTMLInputElement).type !== 'checkbox') return
+
+      const tr = target.closest('tr[data-task-id]')
+      if (!tr) return
+
+      const taskId = tr.getAttribute('data-task-id')
+      if (!taskId) return
+
+      e.preventDefault()
+      if (e.key === 'ArrowLeft') {
+        handleLevelUp(taskId)
+      } else {
+        handleLevelDown(taskId)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [handleLevelUp, handleLevelDown])
+
   // ─── フォーカス設定 ──────────────────────────────────────────────────
   const handleFocus = useCallback((id: string, column: 'name' | 'due' | 'time' | 'checkbox') => {
     setFocusedId(id)
