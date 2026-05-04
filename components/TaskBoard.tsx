@@ -294,18 +294,31 @@ export default function TaskBoard({ initialTasks, initialCollapsedIds, initialTh
       position = getNextPosition(siblings)
     }
 
-    // 親タスクの期日からデフォルト期日を計算
-    let defaultDueType: DueType = 'specific_date'
-    if (parentId) {
-      const parent = tasks.find(t => t.id === parentId)
-      if (parent) defaultDueType = getChildDefaultDueType(parent.due_type)
+    // 直上タスク（afterTaskId または兄弟の末尾）から期日設定を引き継ぐ
+    let aboveTask: Task | undefined
+    if (afterTaskId) {
+      aboveTask = tasks.find(t => t.id === afterTaskId)
+    } else if (siblings.length > 0) {
+      aboveTask = siblings[siblings.length - 1]
     }
 
-    // デフォルトの日付（今日）
-    const today = new Date()
-    const defaultDueDate = defaultDueType === 'specific_date'
-      ? `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-      : null
+    let defaultDueType: DueType
+    let defaultDueDate: string | null
+    if (aboveTask) {
+      defaultDueType = aboveTask.due_type
+      defaultDueDate = aboveTask.due_date
+    } else if (parentId) {
+      const parent = tasks.find(t => t.id === parentId)
+      defaultDueType = parent ? getChildDefaultDueType(parent.due_type) : 'specific_date'
+      const today = new Date()
+      defaultDueDate = defaultDueType === 'specific_date'
+        ? `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+        : null
+    } else {
+      defaultDueType = 'specific_date'
+      const today = new Date()
+      defaultDueDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    }
 
     // 名前が確定されるまでローカルのみに保持する一時タスク
     const tempId = crypto.randomUUID()
